@@ -55,7 +55,7 @@ jobs:
       - name: install deps
         run: make deps
 
-      - uses: actionsx/prettier@v4.2
+      - uses: actionsx/prettier@v2
         with:
           args: --check .
 
