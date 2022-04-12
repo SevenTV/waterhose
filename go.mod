@@ -3,7 +3,7 @@ module github.com/seventv/twitch-chat-controller
 go 1.18
 
 require (
-	github.com/SevenTV/Common v0.0.0-20220412021817-5fc4c7879ebe
+	github.com/SevenTV/Common v0.0.0-20220412022227-5d8721741a38
 	github.com/bugsnag/panicwrap v1.3.4
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-redis/redis/v8 v8.11.5
