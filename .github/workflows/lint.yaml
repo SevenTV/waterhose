@@ -55,6 +55,12 @@ jobs:
       - name: install deps
         run: make deps
 
+      - name: compile protobuf
+        run: make proto
+
+      - name: compile loaders
+        run: make loader
+
       - uses: actionsx/prettier@v2
         with:
           args: --check .
