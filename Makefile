@@ -26,7 +26,7 @@ lint:
 
 	$(MAKE) -C protobuf lint
 
-deps: build_deps
+deps:
 	go mod download
 	yarn
 	go install honnef.co/go/tools/cmd/staticcheck@latest
