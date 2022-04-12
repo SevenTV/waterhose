@@ -35,7 +35,7 @@ func (e *Events) Subscribe(evt string, ch chan interface{}) func() {
 	evtContainer, ok := e.mp[evt]
 	if !ok {
 		e.mp[evt] = &eventContainer{
-			i:  utils.Int32Pointer(0),
+			i:  utils.PointerOf(int32(0)),
 			mp: map[int32]chan interface{}{},
 		}
 		evtContainer = e.mp[evt]
@@ -57,7 +57,7 @@ func (e *Events) Subscribe(evt string, ch chan interface{}) func() {
 	}
 }
 
-func (e *Events) Publish(evt string) int {
+func (e *Events) Publish(evt string, payload interface{}) int {
 	e.mtx.Lock()
 
 	i := 0
@@ -66,7 +66,7 @@ func (e *Events) Publish(evt string) int {
 		i = len(evtContainer.mp)
 		for _, v := range evtContainer.mp {
 			select {
-			case v <- struct{}{}:
+			case v <- payload:
 			default:
 			}
 		}

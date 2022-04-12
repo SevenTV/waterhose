@@ -166,7 +166,7 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	h.gCtx.Inst().Events.Publish("twitch-chat:login:" + user.ID)
+	h.gCtx.Inst().Events.Publish("twitch-chat:login:"+user.ID, nil)
 }
 
 func (h *HttpServer) AuthLoginHandler(ctx *fasthttp.RequestCtx) {
