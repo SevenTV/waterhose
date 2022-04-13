@@ -2,7 +2,6 @@ package autoscaler
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -141,8 +140,8 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 			a.rescaleUnsafe(ctx, int32(len(a.edges)))
 
-			for i, users := range allocations {
-				a.gCtx.Inst().Events.Publish(fmt.Sprintf("edge-update:%d", i), users)
+			for idx, channels := range allocations {
+				a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 			}
 
 			return ret, errs
@@ -154,7 +153,8 @@ func New(gCtx global.Context) instance.AutoScaler {
 }
 
 func (a *autoScaler) Load() error {
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
 	cur, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).Find(ctx, bson.M{})
 	if err != nil {
@@ -162,8 +162,12 @@ func (a *autoScaler) Load() error {
 	}
 
 	channels := []structures.Channel{}
-	if err = cur.All(ctx, &channels); err != nil {
-		return err
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		defer cancel()
+		if err = cur.All(ctx, &channels); err != nil {
+			return err
+		}
 	}
 
 	a.mtx.Lock()
@@ -190,8 +194,9 @@ func (a *autoScaler) Load() error {
 
 	a.rescaleUnsafe(ctx, int32(len(a.edges)))
 
-	for i, users := range a.edges {
-		a.gCtx.Inst().Events.Publish(fmt.Sprintf("edge-update:%d", i), users)
+	for idx, channelsMp := range a.edges {
+		_, channels := utils.DestructureMap(channelsMp)
+		a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 	}
 
 	return nil

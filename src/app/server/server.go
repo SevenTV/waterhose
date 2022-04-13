@@ -2,15 +2,17 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/SevenTV/Common/eventemitter"
 	"github.com/SevenTV/Common/utils"
 	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-chat-controller/src/global"
 	"github.com/seventv/twitch-chat-controller/src/structures"
+	"github.com/seventv/twitch-chat-controller/src/svc/events"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,30 +31,33 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 	ctx, cancel := context.WithCancel(srv.Context())
 	defer cancel()
 
-	accountID := s.gCtx.Config().Irc.Accounts.MainAccountID
-
-	loginEventCh := make(chan any, 5)
-	loginEventCh <- nil
-	defer close(loginEventCh)
-	defer s.gCtx.Inst().Events.Subscribe("twitch-chat:login:"+accountID, loginEventCh)()
-
-	name, err := strconv.Atoi(strings.TrimPrefix(req.NodeName, s.gCtx.Config().K8S.SatefulsetName+"-"))
+	edgeIdx, err := strconv.Atoi(strings.TrimPrefix(req.NodeName, s.gCtx.Config().K8S.SatefulsetName+"-"))
 	if err != nil {
 		return ErrBadNodeName
 	}
 
-	joinEventCh := make(chan any, 5)
-	joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(name)
-	defer close(joinEventCh)
-	defer s.gCtx.Inst().Events.Subscribe(fmt.Sprintf("edge-update:%d", name), joinEventCh)()
+	accountID := s.gCtx.Config().Irc.Accounts.MainAccountID
+
+	loginEventCh := make(chan struct{}, 5)
+	defer close(loginEventCh)
+	loginEventCh <- struct{}{}
 
 	loginTick := time.NewTicker(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 	defer loginTick.Stop()
 	go func() {
 		for range loginTick.C {
-			loginEventCh <- nil
+			loginEventCh <- struct{}{}
 		}
 	}()
+
+	joinEventCh := make(chan []structures.Channel, 5)
+	defer close(joinEventCh)
+	joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(edgeIdx)
+
+	defer s.gCtx.Inst().EventEmitter.Listen(eventemitter.NewEventListener(map[string]reflect.Value{
+		events.TwitchChatLoginFormat(accountID): reflect.ValueOf(loginEventCh),
+		events.EdgeChannelUpdateFormat(edgeIdx): reflect.ValueOf(joinEventCh),
+	}))()
 
 	for {
 		select {
@@ -90,9 +95,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 			}); err != nil {
 				return err
 			}
-		case ch := <-joinEventCh:
-			channels := ch.([]structures.Channel)
-
+		case channels := <-joinEventCh:
 			pbChannels := make([]*pb.Channel, len(channels))
 			for i, channel := range channels {
 				pbChannels[i] = &pb.Channel{

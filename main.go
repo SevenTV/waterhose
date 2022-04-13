@@ -105,14 +105,17 @@ func main() {
 
 	{
 		gCtx.Inst().K8S = k8s.New(gCtx)
+		logrus.Info("k8s, ok")
 	}
 
 	{
-		gCtx.Inst().Events = events.New()
+		gCtx.Inst().EventEmitter = events.New()
+		logrus.Info("eventemitter, ok")
 	}
 
 	{
 		gCtx.Inst().Twitch = twitch.New(gCtx)
+		logrus.Info("twitch, ok")
 	}
 
 	{
@@ -120,11 +123,14 @@ func main() {
 		if err := gCtx.Inst().AutoScaler.Load(); err != nil {
 			logrus.Fatal("failed to load autoscaler: ", err)
 		}
+
+		logrus.Info("autoscaler, ok")
 	}
 
 	{
 		gCtx.Inst().RateLimit = ratelimiter.New()
 		go gCtx.Inst().RateLimit.Start()
+		logrus.Info("ratelimiter, ok")
 	}
 
 	appDone := app.New(gCtx)

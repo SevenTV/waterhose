@@ -48,8 +48,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/SevenTV/Common v0.0.0-20220413053207-f09cc1f188c2 h1:Aw5B/3rxKJZ4AbGSSMPoZ+Y7Qn1SMamKbwpAansXLKA=
-github.com/SevenTV/Common v0.0.0-20220413053207-f09cc1f188c2/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
+github.com/SevenTV/Common v0.0.0-20220413171303-352a0f103e90 h1:kwffbuZ27wqdQBYPH2nt9EKAhcWBmYZJ7qvftzGCKrI=
+github.com/SevenTV/Common v0.0.0-20220413171303-352a0f103e90/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
 github.com/andybalholm/brotli v1.0.2 h1:JKnhI/XQ75uFBTiuzXpzFrUriDPiZjlOSzh6wXogP0E=
 github.com/andybalholm/brotli v1.0.2/go.mod h1:loMXtMfwqflxFJPmdbJO0a3KNoPuLBgiu3qAvBg8x/Y=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
