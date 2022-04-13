@@ -2,11 +2,15 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/SevenTV/Common/utils"
 	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-chat-controller/src/global"
+	"github.com/seventv/twitch-chat-controller/src/structures"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,14 +26,25 @@ func New(gCtx global.Context) pb.TwitchEdgeServiceServer {
 }
 
 func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeService_RegisterEdgeServer) error {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(srv.Context())
 	defer cancel()
 
 	accountID := s.gCtx.Config().Irc.Accounts.MainAccountID
 
-	loginEventCh := make(chan interface{}, 5)
+	loginEventCh := make(chan any, 5)
+	loginEventCh <- nil
 	defer close(loginEventCh)
 	defer s.gCtx.Inst().Events.Subscribe("twitch-chat:login:"+accountID, loginEventCh)()
+
+	name, err := strconv.Atoi(strings.TrimPrefix(req.NodeName, s.gCtx.Config().K8S.SatefulsetName+"-"))
+	if err != nil {
+		return ErrBadNodeName
+	}
+
+	joinEventCh := make(chan any, 5)
+	joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(name)
+	defer close(joinEventCh)
+	defer s.gCtx.Inst().Events.Subscribe(fmt.Sprintf("edge-update:%d", name), joinEventCh)()
 
 	loginTick := time.NewTicker(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 	defer loginTick.Stop()
@@ -39,12 +54,10 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 		}
 	}()
 
-	loginEventCh <- nil
-
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case <-loginEventCh:
 			loginTick.Reset(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 			utils.EmptyChannel(loginEventCh)
@@ -77,6 +90,28 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 			}); err != nil {
 				return err
 			}
+		case ch := <-joinEventCh:
+			channels := ch.([]structures.Channel)
+
+			pbChannels := make([]*pb.Channel, len(channels))
+			for i, channel := range channels {
+				pbChannels[i] = &pb.Channel{
+					Id:       channel.TwitchID,
+					Login:    channel.TwitchLogin,
+					Priority: channel.Priority,
+				}
+			}
+
+			if err = srv.Send(&pb.RegisterEdgeResponse{
+				Type: pb.EventType_EVENT_TYPE_JOIN_CHANNEL,
+				Payload: &pb.RegisterEdgeResponse_JoinChannelPayload_{
+					JoinChannelPayload: &pb.RegisterEdgeResponse_JoinChannelPayload{
+						Channels: pbChannels,
+					},
+				},
+			}); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -92,5 +127,16 @@ func (s *Server) JoinChannel(ctx context.Context, req *pb.JoinChannelRequest) (*
 
 	return &pb.JoinChannelResponse{
 		Success: true,
+	}, nil
+}
+
+func (s *Server) JoinChannelEdge(ctx context.Context, req *pb.JoinChannelEdgeRequest) (*pb.JoinChannelEdgeResponse, error) {
+	err := s.gCtx.Inst().RateLimit.RequestJoin(ctx, req.Channel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.JoinChannelEdgeResponse{
+		Allowed: true,
 	}, nil
 }

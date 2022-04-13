@@ -16,7 +16,7 @@ type Events struct {
 type eventContainer struct {
 	i   *int32
 	mtx sync.Mutex
-	mp  map[int32]chan interface{}
+	mp  map[int32]chan any
 }
 
 func New() *Events {
@@ -29,14 +29,14 @@ func New() *Events {
 	return evt
 }
 
-func (e *Events) Subscribe(evt string, ch chan interface{}) func() {
+func (e *Events) Subscribe(evt string, ch chan any) func() {
 	e.mtx.Lock()
 
 	evtContainer, ok := e.mp[evt]
 	if !ok {
 		e.mp[evt] = &eventContainer{
 			i:  utils.PointerOf(int32(0)),
-			mp: map[int32]chan interface{}{},
+			mp: map[int32]chan any{},
 		}
 		evtContainer = e.mp[evt]
 	}
@@ -57,7 +57,7 @@ func (e *Events) Subscribe(evt string, ch chan interface{}) func() {
 	}
 }
 
-func (e *Events) Publish(evt string, payload interface{}) int {
+func (e *Events) Publish(evt string, payload any) int {
 	e.mtx.Lock()
 
 	i := 0

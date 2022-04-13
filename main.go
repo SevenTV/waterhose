@@ -19,6 +19,7 @@ import (
 	"github.com/seventv/twitch-chat-controller/src/svc/autoscaler"
 	"github.com/seventv/twitch-chat-controller/src/svc/events"
 	"github.com/seventv/twitch-chat-controller/src/svc/k8s"
+	"github.com/seventv/twitch-chat-controller/src/svc/ratelimiter"
 	"github.com/seventv/twitch-chat-controller/src/svc/redis"
 	"github.com/seventv/twitch-chat-controller/src/svc/twitch"
 	"github.com/sirupsen/logrus"
@@ -116,7 +117,14 @@ func main() {
 
 	{
 		gCtx.Inst().AutoScaler = autoscaler.New(gCtx)
-		gCtx.Inst().AutoScaler.Load()
+		if err := gCtx.Inst().AutoScaler.Load(); err != nil {
+			logrus.Fatal("failed to load autoscaler: ", err)
+		}
+	}
+
+	{
+		gCtx.Inst().RateLimit = ratelimiter.New()
+		go gCtx.Inst().RateLimit.Start()
 	}
 
 	appDone := app.New(gCtx)

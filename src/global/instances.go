@@ -13,4 +13,5 @@ type Instances struct {
 	Twitch     instance.Twitch
 	Mongo      mongo.Instance
 	AutoScaler instance.AutoScaler
+	RateLimit  instance.RateLimiter
 }

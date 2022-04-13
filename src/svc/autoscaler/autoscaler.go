@@ -23,7 +23,9 @@ type autoScaler struct {
 	mtx  sync.Mutex
 
 	// a map of edge ids to a list of chnanels in said edge
-	edges []map[string]structures.Channel
+	edges   []map[string]structures.Channel
+	edgeIdx int
+
 	// a map of channel id to edge id
 	channels map[string]structures.Channel
 
@@ -64,7 +66,6 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 			users, _ := a.gCtx.Inst().Twitch.GetUsers(filteredIDs)
 			userIdx := 0
-			edgeIdx := 0
 
 			allocations := map[int][]structures.Channel{}
 			newChannels := []mongo.WriteModel{}
@@ -76,11 +77,11 @@ func New(gCtx global.Context) instance.AutoScaler {
 					continue
 				}
 
-				for edgeIdx < len(a.edges) {
+				for a.edgeIdx < len(a.edges) {
 					usr := users[userIdx]
 
 					preset := false
-					presetEdgeIdx := edgeIdx
+					presetEdgeIdx := a.edgeIdx
 					if channel, ok := a.channels[usr.ID]; ok {
 						presetEdgeIdx = int(channel.EdgeNode)
 						preset = true
@@ -120,12 +121,12 @@ func New(gCtx global.Context) instance.AutoScaler {
 						continue users
 					}
 
-					if presetEdgeIdx == edgeIdx {
-						edgeIdx++
+					if presetEdgeIdx == a.edgeIdx {
+						a.edgeIdx++
 					}
 				}
 
-				if edgeIdx == len(a.edges) {
+				if a.edgeIdx == len(a.edges) {
 					// we need a new edge node
 					// we at this point allocate the channels to an edge node that does not exist.
 					// and then after everything is allocated we do a rescale.
@@ -138,26 +139,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 				logrus.Fatal(err)
 			}
 
-			size := int32(len(a.edges))
-			if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-				statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().K8S.SatefulsetName)
-				if err != nil {
-					// unknown as to why this error occured.
-					// todo fix this error
-					logrus.Fatal(err)
-				}
-
-				if statefulSet.Spec.Replicas == nil || *statefulSet.Spec.Replicas < size {
-					// rescale
-					statefulSet.Spec.Replicas = utils.PointerOf(int32(size))
-					_, err := a.gCtx.Inst().K8S.UpdateStatefulSet(context.TODO(), statefulSet)
-					return err
-				}
-
-				return nil
-			}); err != nil {
-				logrus.Fatal(err)
-			}
+			a.rescaleUnsafe(ctx, int32(len(a.edges)))
 
 			for i, users := range allocations {
 				a.gCtx.Inst().Events.Publish(fmt.Sprintf("edge-update:%d", i), users)
@@ -184,6 +166,8 @@ func (a *autoScaler) Load() error {
 		return err
 	}
 
+	a.mtx.Lock()
+	defer a.mtx.Unlock()
 	for _, v := range channels {
 		a.channels[v.TwitchID] = v
 		if len(a.edges) < int(v.EdgeNode)+1 {
@@ -204,7 +188,38 @@ func (a *autoScaler) Load() error {
 		close(a.ready)
 	})
 
-	size := int32(len(a.edges))
+	a.rescaleUnsafe(ctx, int32(len(a.edges)))
+
+	for i, users := range a.edges {
+		a.gCtx.Inst().Events.Publish(fmt.Sprintf("edge-update:%d", i), users)
+	}
+
+	return nil
+}
+
+func (a *autoScaler) AllocateChannels(channels []*pb.Channel) error {
+	_, errs := a.loader.LoadAll(channels)
+	return errs[0]
+}
+
+func (a *autoScaler) GetChannelsForEdge(idx int) []structures.Channel {
+	a.mtx.Lock()
+	defer a.mtx.Unlock()
+	if len(a.edges) <= idx {
+		return nil
+	}
+
+	channels := make([]structures.Channel, len(a.edges[idx]))
+	i := 0
+	for _, v := range a.edges[idx] {
+		channels[i] = v
+		i++
+	}
+
+	return channels
+}
+
+func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().K8S.SatefulsetName)
 		if err != nil {
@@ -224,15 +239,4 @@ func (a *autoScaler) Load() error {
 	}); err != nil {
 		logrus.Fatal(err)
 	}
-
-	for i, users := range a.edges {
-		a.gCtx.Inst().Events.Publish(fmt.Sprintf("edge-update:%d", i), users)
-	}
-
-	return nil
-}
-
-func (a *autoScaler) AllocateChannels(chnanels []*pb.Channel) error {
-	_, errs := a.loader.LoadAll(chnanels)
-	return errs[0]
 }

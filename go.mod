@@ -3,9 +3,8 @@ module github.com/seventv/twitch-chat-controller
 go 1.18
 
 require (
-	github.com/SevenTV/Common v0.0.0-20220412040558-6b7ac432958f
+	github.com/SevenTV/Common v0.0.0-20220413053207-f09cc1f188c2
 	github.com/bugsnag/panicwrap v1.3.4
-	github.com/davecgh/go-spew v1.1.1
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/json-iterator/go v1.1.12
 	github.com/nicklaw5/helix v1.25.0
@@ -22,6 +21,7 @@ require (
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect

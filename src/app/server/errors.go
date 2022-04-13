@@ -8,4 +8,5 @@ func (e Error) Error() string {
 
 const (
 	ErrNoLoginData Error = "no login data"
+	ErrBadNodeName Error = "bad node name"
 )
