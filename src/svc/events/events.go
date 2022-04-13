@@ -78,7 +78,7 @@ func (e *Events) Publish(evt string, payload interface{}) int {
 }
 
 func (e *Events) clean() {
-	tick := time.NewTicker(time.Minute * 30)
+	tick := time.NewTicker(time.Minute*30 + utils.JitterTime(time.Second, time.Minute*5))
 	for range tick.C {
 		e.mtx.Lock()
 

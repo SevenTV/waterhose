@@ -10,11 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	cMongo "github.com/SevenTV/Common/mongo"
 	cRedis "github.com/SevenTV/Common/redis"
 	"github.com/bugsnag/panicwrap"
 	"github.com/seventv/twitch-chat-controller/src/app"
 	"github.com/seventv/twitch-chat-controller/src/configure"
 	"github.com/seventv/twitch-chat-controller/src/global"
+	"github.com/seventv/twitch-chat-controller/src/svc/autoscaler"
 	"github.com/seventv/twitch-chat-controller/src/svc/events"
 	"github.com/seventv/twitch-chat-controller/src/svc/k8s"
 	"github.com/seventv/twitch-chat-controller/src/svc/redis"
@@ -85,6 +87,22 @@ func main() {
 	}
 
 	{
+		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
+		mongoInst, err := cMongo.Setup(ctx, cMongo.SetupOptions{
+			URI:      gCtx.Config().Mongo.URI,
+			DB:       gCtx.Config().Mongo.Database,
+			Direct:   gCtx.Config().Mongo.Direct,
+			CollSync: false,
+		})
+		cancel()
+		if err != nil {
+			logrus.WithError(err).Fatal("failed to connect to mongo")
+		}
+
+		gCtx.Inst().Mongo = mongoInst
+	}
+
+	{
 		gCtx.Inst().K8S = k8s.New(gCtx)
 	}
 
@@ -94,6 +112,11 @@ func main() {
 
 	{
 		gCtx.Inst().Twitch = twitch.New(gCtx)
+	}
+
+	{
+		gCtx.Inst().AutoScaler = autoscaler.New(gCtx)
+		gCtx.Inst().AutoScaler.Load()
 	}
 
 	appDone := app.New(gCtx)

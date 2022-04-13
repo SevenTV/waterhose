@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync"
 
-	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_chat/v1"
+	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-chat-controller/src/app/server"
 	"github.com/seventv/twitch-chat-controller/src/global"
 	"github.com/sirupsen/logrus"
@@ -31,7 +31,7 @@ func New(gCtx global.Context) <-chan struct{} {
 		}
 
 		grpcSrv = grpc.NewServer()
-		pb.RegisterTwitchChatServiceServer(grpcSrv, server.New(gCtx))
+		pb.RegisterTwitchEdgeServiceServer(grpcSrv, server.New(gCtx))
 
 		if err := grpcSrv.Serve(ln); err != nil {
 			logrus.Fatal("failed to listen to addresss: ", err)

@@ -5,23 +5,23 @@ import (
 	"time"
 
 	"github.com/SevenTV/Common/utils"
-	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_chat/v1"
+	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-chat-controller/src/global"
 	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
 	gCtx global.Context
-	pb.UnimplementedTwitchChatServiceServer
+	pb.UnimplementedTwitchEdgeServiceServer
 }
 
-func New(gCtx global.Context) pb.TwitchChatServiceServer {
+func New(gCtx global.Context) pb.TwitchEdgeServiceServer {
 	return &Server{
 		gCtx: gCtx,
 	}
 }
 
-func (s *Server) Register(req *pb.RegisterRequest, srv pb.TwitchChatService_RegisterServer) error {
+func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeService_RegisterEdgeServer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -30,7 +30,8 @@ func (s *Server) Register(req *pb.RegisterRequest, srv pb.TwitchChatService_Regi
 	loginEventCh := make(chan interface{}, 5)
 	defer close(loginEventCh)
 	defer s.gCtx.Inst().Events.Subscribe("twitch-chat:login:"+accountID, loginEventCh)()
-	loginTick := time.NewTicker(time.Hour)
+
+	loginTick := time.NewTicker(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 	defer loginTick.Stop()
 	go func() {
 		for range loginTick.C {
@@ -45,7 +46,7 @@ func (s *Server) Register(req *pb.RegisterRequest, srv pb.TwitchChatService_Regi
 		case <-ctx.Done():
 			return nil
 		case <-loginEventCh:
-			loginTick.Reset(time.Hour)
+			loginTick.Reset(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 			utils.EmptyChannel(loginEventCh)
 
 			tCtx, tCancel := context.WithTimeout(ctx, time.Second*5)
@@ -62,10 +63,10 @@ func (s *Server) Register(req *pb.RegisterRequest, srv pb.TwitchChatService_Regi
 				return ErrNoLoginData
 			}
 
-			_ = srv.Send(&pb.RegisterResponse{
+			if err = srv.Send(&pb.RegisterEdgeResponse{
 				Type: pb.EventType_EVENT_TYPE_LOGIN,
-				Payload: &pb.RegisterResponse_LoginPayload_{
-					LoginPayload: &pb.RegisterResponse_LoginPayload{
+				Payload: &pb.RegisterEdgeResponse_LoginPayload_{
+					LoginPayload: &pb.RegisterEdgeResponse_LoginPayload{
 						Channel: &pb.Channel{
 							Id:    accountID,
 							Login: user.Login,
@@ -73,7 +74,23 @@ func (s *Server) Register(req *pb.RegisterRequest, srv pb.TwitchChatService_Regi
 						Oauth: auth.AccessToken,
 					},
 				},
-			})
+			}); err != nil {
+				return err
+			}
 		}
 	}
+}
+
+func (s *Server) PublishEdgeEvent(ctx context.Context, req *pb.PublishEdgeEventRequest) (*pb.PublishEdgeEventResponse, error) {
+	return nil, nil
+}
+
+func (s *Server) JoinChannel(ctx context.Context, req *pb.JoinChannelRequest) (*pb.JoinChannelResponse, error) {
+	if err := s.gCtx.Inst().AutoScaler.AllocateChannels(req.Channels); err != nil {
+		return nil, err
+	}
+
+	return &pb.JoinChannelResponse{
+		Success: true,
+	}, nil
 }

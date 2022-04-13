@@ -124,8 +124,15 @@ type Config struct {
 	} `mapstructure:"twitch" json:"twitch"`
 
 	K8S struct {
-		Namespace  string `mapstructure:"namespace" json:"namespace"`
-		InCluster  bool   `mapstructure:"in_cluster" json:"in_cluster"`
-		ConfigPath string `mapstructure:"config_path" json:"config_path"`
+		Namespace      string `mapstructure:"namespace" json:"namespace"`
+		InCluster      bool   `mapstructure:"in_cluster" json:"in_cluster"`
+		ConfigPath     string `mapstructure:"config_path" json:"config_path"`
+		SatefulsetName string `mapstructure:"statefulset_name" json:"statefulset_name"`
 	} `mapstructure:"k8s" json:"k8s"`
+
+	Mongo struct {
+		URI      string `mapstructure:"uri" json:"uri"`
+		Database string `mapstructure:"database" json:"database"`
+		Direct   bool   `mapstructure:"direct" bson:"direct"`
+	} `mapstructure:"mongo" json:"mongo"`
 }

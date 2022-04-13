@@ -2,6 +2,7 @@ package twitch
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -88,7 +89,11 @@ func New(gCtx global.Context) instance.Twitch {
 				}
 
 				for i, v := range keys {
-					users[i] = mp[v]
+					if usr, ok := mp[v]; ok {
+						users[i] = usr
+					} else {
+						errs[i] = fmt.Errorf("not found")
+					}
 				}
 
 				return users, errs
@@ -164,4 +169,8 @@ func (t *twitchController) GetOAuth(ctx context.Context, id string) (helix.Acces
 
 func (t *twitchController) GetUser(id string) (helix.User, error) {
 	return t.userLoader.Load(id)
+}
+
+func (t *twitchController) GetUsers(ids []string) ([]helix.User, []error) {
+	return t.userLoader.LoadAll(ids)
 }
