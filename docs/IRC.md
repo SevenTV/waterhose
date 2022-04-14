@@ -24,7 +24,8 @@ This document aims to define what happens during edge cases on the Twitch IRC
 
 ## Channel changes name
 
-    Nothing happens, no part the room just becomes invalid you cannot send messages and cannot receive messages. Not sure how to detect this one.
+    Nothing happens, no part the room just becomes invalid you cannot send messages and cannot receive messages. 
+    Not sure how to detect this one.
 
 
 ## Join non-existant channel
