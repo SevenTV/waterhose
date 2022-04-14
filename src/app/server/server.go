@@ -36,7 +36,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 		return ErrBadNodeName
 	}
 
-	accountID := s.gCtx.Config().Irc.Accounts.MainAccountID
+	accountID := s.gCtx.Config().Irc.BotAccountID
 
 	loginEventCh := make(chan struct{}, 5)
 	defer close(loginEventCh)

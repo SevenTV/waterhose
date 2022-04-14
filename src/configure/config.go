@@ -103,10 +103,8 @@ type Config struct {
 	} `mapstructure:"api" json:"api"`
 
 	Irc struct {
-		ChannelLimit int `mapstructure:"channel_limit" json:"channel_limit"`
-		Accounts     struct {
-			MainAccountID string `mapstructure:"main_account_id" json:"main_account_id"`
-		} `mapstructure:"accounts" json:"accounts"`
+		ChannelLimit int    `mapstructure:"channel_limit" json:"channel_limit"`
+		BotAccountID string `mapstructure:"bot_account_id" json:"bot_account_id"`
 	} `mapstructure:"irc" json:"irc"`
 
 	Redis struct {
