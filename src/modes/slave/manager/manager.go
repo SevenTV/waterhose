@@ -16,6 +16,8 @@ The 0th connection in each manager will be a connection that does not have auth,
 
 type RateLimiter func(context.Context, *pb.Channel) error
 
+type EventPublish func(context.Context, *pb.PublishEdgeChannelEventRequest) error
+
 type Manager struct {
 	gCtx global.Context
 
@@ -24,11 +26,12 @@ type Manager struct {
 	mtx      sync.Mutex
 
 	rl RateLimiter
+	ep EventPublish
 
 	connectionOptions ConnectionOptions
 }
 
-func New(gCtx global.Context, rl RateLimiter) *Manager {
+func New(gCtx global.Context, rl RateLimiter, ep EventPublish) *Manager {
 	manager := &Manager{
 		gCtx:     gCtx,
 		channels: map[string]int{},

@@ -33,6 +33,9 @@ func New(gCtx global.Context) <-chan struct{} {
 				Channel: channel,
 			})
 			return err
+		}, func(ctx context.Context, evt *pb.PublishEdgeChannelEventRequest) error {
+			_, err := cl.grpc.PublishEdgeChannelEvent(ctx, evt)
+			return err
 		}),
 	}
 

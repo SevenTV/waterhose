@@ -87,7 +87,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 			}
 
 			if err = srv.Send(&pb.RegisterEdgeResponse{
-				Type: pb.EventType_EVENT_TYPE_LOGIN,
+				Type: pb.RegisterEdgeResponse_EVENT_TYPE_LOGIN,
 				Payload: &pb.RegisterEdgeResponse_LoginPayload_{
 					LoginPayload: &pb.RegisterEdgeResponse_LoginPayload{
 						Channel: &pb.Channel{
@@ -111,7 +111,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 			}
 
 			if err = srv.Send(&pb.RegisterEdgeResponse{
-				Type: pb.EventType_EVENT_TYPE_JOIN_CHANNEL,
+				Type: pb.RegisterEdgeResponse_EVENT_TYPE_JOIN_CHANNEL,
 				Payload: &pb.RegisterEdgeResponse_JoinChannelPayload_{
 					JoinChannelPayload: &pb.RegisterEdgeResponse_JoinChannelPayload{
 						Channels: pbChannels,
@@ -124,8 +124,23 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 	}
 }
 
-func (s *Server) PublishEdgeEvent(ctx context.Context, req *pb.PublishEdgeEventRequest) (*pb.PublishEdgeEventResponse, error) {
-	return nil, nil
+func (s *Server) PublishEdgeChannelEvent(ctx context.Context, req *pb.PublishEdgeChannelEventRequest) (*pb.PublishEdgeChannelEventResponse, error) {
+	switch req.Type {
+	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_BANNED:
+		// TODO handle this
+	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
+		// TODO handle this
+	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
+		// we need to issue a rejoin on this channel
+		if err := s.gCtx.Inst().AutoScaler.AllocateChannels([]*pb.Channel{
+			req.Channel,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return &pb.PublishEdgeChannelEventResponse{
+		Success: true,
+	}, nil
 }
 
 func (s *Server) JoinChannel(ctx context.Context, req *pb.JoinChannelRequest) (*pb.JoinChannelResponse, error) {

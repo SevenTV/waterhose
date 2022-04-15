@@ -69,15 +69,47 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 	conn.client.SetOnMessage(conn.onMessage)
 
 	go func() {
+		tick := time.NewTicker(time.Minute*5 + utils.JitterTime(time.Minute, time.Minute*5))
+		defer tick.Stop()
 		for {
-			logrus.Infof("twitch client %d connecting", conn.idx)
+			select {
+			case <-tick.C:
+			case <-gCtx.Done():
+				return
+			}
+
+			conn.mtx.Lock()
+			for _, v := range conn.channels {
+				switch v.State {
+				case ChannelStateJoined, ChannelStateSuspended:
+					if v.LastEvent.Before(time.Now().Add(-time.Hour)) {
+						go conn.JoinChannel(v.Raw)
+					}
+				case ChannelStateJoinRequested:
+					if v.LastEvent.Before(time.Now().Add(-time.Minute * 5)) {
+						if err := conn.manager.ep(gCtx, &pb.PublishEdgeChannelEventRequest{
+							Channel: v.Raw,
+							Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL,
+						}); err != nil {
+							logrus.Error("failed to publish event to master: ", err)
+						}
+					}
+				}
+			}
+			conn.mtx.Unlock()
+		}
+	}()
+
+	go func() {
+		for {
+			logrus.WithField("idx", conn.idx).Infof("twitch client connecting")
 
 			if err := conn.getNewConnection(gCtx); err != nil {
 				if gCtx.Err() != nil {
 					return
 				}
 
-				logrus.Errorf("redis: %e", conn.idx, err)
+				logrus.WithField("idx", conn.idx).Errorf("redis: %e", err)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
 
@@ -87,7 +119,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 					return
 				}
 
-				logrus.Errorf("twitch client %d disconnected: %e", conn.idx, err)
+				logrus.WithField("idx", conn.idx).Errorf("twitch client disconnected: %e", err)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
 		}
@@ -115,7 +147,6 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 
 func (c *Connection) onConnect() {
 	logrus.WithField("idx", c.idx).Info("twitch client connected")
-	// todo connect to channels :)
 }
 
 func (c *Connection) onReconnect() {
@@ -127,44 +158,56 @@ func (c *Connection) onMessage(m irc.Message) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	channel := strings.TrimLeft(m.Channel, "#")
+	msgCh := strings.TrimLeft(m.Channel, "#")
 
-	fmt.Println(m.Raw)
-
-	if _, ok := c.channels[channel]; !ok {
+	if _, ok := c.channels[msgCh]; !ok {
 		return
 	}
 
-	c.channels[channel].Update()
+	channel := c.channels[msgCh]
+
+	channel.Update()
 	switch m.Type {
 	case irc.MessageTypeJoin:
 		if m.User == c.username {
-			c.channels[channel].Update(ChannelStateJoined)
+			channel.Update(ChannelStateJoined)
 		}
 	case irc.MessageTypePart:
 		if m.User == c.username {
-			c.channels[channel].Update(ChannelStateParted)
-			go c.JoinChannel(c.channels[channel].Raw)
+			channel.Update(ChannelStateParted)
+			go c.JoinChannel(channel.Raw)
 		}
 	case irc.MessageTypeNotice:
 		if m.Tags.ChannelSuspended() {
-			c.channels[channel].Update(ChannelStateSuspended)
+			channel.Update(ChannelStateSuspended)
+			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
+				Channel: channel.Raw,
+				Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL,
+			}); err != nil {
+				logrus.Error("failed to publish event to master: ", err)
+			}
 			return
 		}
 
 		if m.Tags.Banned() {
 			logrus.WithField("idx", c.idx).Warn("banned from channel: ", channel)
-			c.channels[channel].Update(ChannelStateBanned)
-			go c.manager.joinAnon(c.channels[channel].Raw)
+			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
+				Channel: channel.Raw,
+				Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_BANNED,
+			}); err != nil {
+				logrus.Error("failed to publish event to master: ", err)
+			}
+			channel.Update(ChannelStateBanned)
+			go c.manager.joinAnon(channel.Raw)
 			return
 		}
 	}
 
 	pipe := c.gCtx.Inst().Redis.Pipeline(c.gCtx)
 	pipe.Publish(c.gCtx, "twitch-irc-chat-messages:ALL:GLOBAL", m.Raw)
-	pipe.Publish(c.gCtx, "twitch-irc-chat-messages:ALL:"+c.channels[channel].Raw.Id, m.Raw)
+	pipe.Publish(c.gCtx, "twitch-irc-chat-messages:ALL:"+channel.Raw.Id, m.Raw)
 	pipe.Publish(c.gCtx, fmt.Sprintf("twitch-irc-chat-messages:%s:GLOBAL", m.Type), m.Raw)
-	pipe.Publish(c.gCtx, fmt.Sprintf("twitch-irc-chat-messages:%s:%s", m.Type, c.channels[channel].Raw.Id), m.Raw)
+	pipe.Publish(c.gCtx, fmt.Sprintf("twitch-irc-chat-messages:%s:%s", m.Type, channel.Raw.Id), m.Raw)
 	if _, err := pipe.Exec(c.gCtx); err != nil {
 		logrus.Error("failed to publish twitch message: ", err)
 	}
