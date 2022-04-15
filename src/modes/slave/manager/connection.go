@@ -147,6 +147,11 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 
 func (c *Connection) onConnect() {
 	logrus.WithField("idx", c.idx).Info("twitch client connected")
+	c.mtx.Lock()
+	for _, channel := range c.channels {
+		go c.JoinChannel(channel.Raw)
+	}
+	c.mtx.Unlock()
 }
 
 func (c *Connection) onReconnect() {
@@ -155,16 +160,15 @@ func (c *Connection) onReconnect() {
 }
 
 func (c *Connection) onMessage(m irc.Message) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
 	msgCh := strings.TrimLeft(m.Channel, "#")
 
 	if _, ok := c.channels[msgCh]; !ok {
 		return
 	}
 
+	c.mtx.Lock()
 	channel := c.channels[msgCh]
+	c.mtx.Unlock()
 
 	channel.Update()
 	switch m.Type {
@@ -229,7 +233,7 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 	}).Update()
 	c.mtx.Unlock()
 
-	c.channels[channel.Login].Update(ChannelStateJoinRequested)
+	c.channels[channel.GetLogin()].Update(ChannelStateJoinRequested)
 	c.client.Write("JOIN #" + channel.GetLogin())
 	logrus.WithField("idx", c.idx).Debug("issued join for channel: ", channel)
 }
