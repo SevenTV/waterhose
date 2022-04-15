@@ -3,15 +3,12 @@ package configure
 import (
 	"bytes"
 	"encoding/json"
-	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"k8s.io/client-go/util/homedir"
 )
 
 func checkErr(err error) {
@@ -21,6 +18,8 @@ func checkErr(err error) {
 }
 
 func New() *Config {
+	initLogging("info")
+
 	config := viper.New()
 
 	// Default config
@@ -36,25 +35,14 @@ func New() *Config {
 	pflag.String("config", "config.yaml", "Config file location")
 	pflag.Bool("noheader", false, "Disable the startup header")
 
-	if home := homedir.HomeDir(); home != "" {
-		pflag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		pflag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-
 	pflag.Parse()
 	checkErr(config.BindPFlags(pflag.CommandLine))
 
 	// File
 	config.SetConfigFile(config.GetString("config"))
 	config.AddConfigPath(".")
-	err := config.ReadInConfig()
-	if err != nil {
-		logrus.Warning(err)
-		logrus.Info("Using default config")
-	} else {
-		checkErr(config.MergeInConfig())
-	}
+	checkErr(config.ReadInConfig())
+	checkErr(config.MergeInConfig())
 
 	BindEnvs(config, Config{})
 
