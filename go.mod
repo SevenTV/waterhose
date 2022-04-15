@@ -1,4 +1,4 @@
-module github.com/seventv/twitch-chat-controller
+module github.com/seventv/twitch-edge
 
 go 1.18
 

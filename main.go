@@ -10,18 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	cMongo "github.com/SevenTV/Common/mongo"
-	cRedis "github.com/SevenTV/Common/redis"
 	"github.com/bugsnag/panicwrap"
-	"github.com/seventv/twitch-chat-controller/src/app"
-	"github.com/seventv/twitch-chat-controller/src/configure"
-	"github.com/seventv/twitch-chat-controller/src/global"
-	"github.com/seventv/twitch-chat-controller/src/svc/autoscaler"
-	"github.com/seventv/twitch-chat-controller/src/svc/events"
-	"github.com/seventv/twitch-chat-controller/src/svc/k8s"
-	"github.com/seventv/twitch-chat-controller/src/svc/ratelimiter"
-	"github.com/seventv/twitch-chat-controller/src/svc/redis"
-	"github.com/seventv/twitch-chat-controller/src/svc/twitch"
+	"github.com/seventv/twitch-edge/src/configure"
+	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/twitch-edge/src/modes"
 	"github.com/sirupsen/logrus"
 )
 
@@ -42,6 +34,10 @@ func init() {
 func main() {
 	config := configure.New()
 
+	if !config.IsMaster() && !config.IsSlave() {
+		logrus.Fatal("invalid startup mode specified: ", config.Mode)
+	}
+
 	exitStatus, err := panicwrap.BasicWrap(func(s string) {
 		logrus.Error(s)
 	})
@@ -55,7 +51,11 @@ func main() {
 	}
 
 	if !config.NoHeader {
-		logrus.Info("7TV Twitch-Chat-Controller")
+		if config.IsMaster() {
+			logrus.Info("7TV Twitch Edge Master")
+		} else if config.IsSlave() {
+			logrus.Info("7TV Twitch Edge Slave")
+		}
 		logrus.Infof("Version: %s", Version)
 		logrus.Infof("build.Time: %s", Time)
 		logrus.Infof("build.User: %s", User)
@@ -92,70 +92,7 @@ func main() {
 		close(done)
 	}()
 
-	{
-		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
-		redisInst, err := cRedis.Setup(ctx, cRedis.SetupOptions{
-			Username:  gCtx.Config().Redis.Username,
-			Password:  gCtx.Config().Redis.Password,
-			Database:  gCtx.Config().Redis.Database,
-			Addresses: gCtx.Config().Redis.Addresses,
-			Sentinel:  gCtx.Config().Redis.Sentinel,
-		})
-		cancel()
-		if err != nil {
-			logrus.WithError(err).Fatal("failed to connect to redis")
-		}
-
-		gCtx.Inst().Redis = redis.WrapRedis(redisInst)
-	}
-
-	{
-		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
-		mongoInst, err := cMongo.Setup(ctx, cMongo.SetupOptions{
-			URI:      gCtx.Config().Mongo.URI,
-			DB:       gCtx.Config().Mongo.Database,
-			Direct:   gCtx.Config().Mongo.Direct,
-			CollSync: false,
-		})
-		cancel()
-		if err != nil {
-			logrus.WithError(err).Fatal("failed to connect to mongo")
-		}
-
-		gCtx.Inst().Mongo = mongoInst
-	}
-
-	{
-		gCtx.Inst().K8S = k8s.New(gCtx)
-		logrus.Info("k8s, ok")
-	}
-
-	{
-		gCtx.Inst().EventEmitter = events.New()
-		logrus.Info("eventemitter, ok")
-	}
-
-	{
-		gCtx.Inst().Twitch = twitch.New(gCtx)
-		logrus.Info("twitch, ok")
-	}
-
-	{
-		gCtx.Inst().AutoScaler = autoscaler.New(gCtx)
-		if err := gCtx.Inst().AutoScaler.Load(); err != nil {
-			logrus.Fatal("failed to load autoscaler: ", err)
-		}
-
-		logrus.Info("autoscaler, ok")
-	}
-
-	{
-		gCtx.Inst().RateLimit = ratelimiter.New()
-		go gCtx.Inst().RateLimit.Start()
-		logrus.Info("ratelimiter, ok")
-	}
-
-	appDone = app.New(gCtx)
+	appDone = modes.New(gCtx)
 
 	logrus.Info("running")
 

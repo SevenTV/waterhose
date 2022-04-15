@@ -2,8 +2,8 @@ package global
 
 import (
 	"github.com/SevenTV/Common/mongo"
-	"github.com/seventv/twitch-chat-controller/src/instance"
-	"github.com/seventv/twitch-chat-controller/src/svc/events"
+	"github.com/seventv/twitch-edge/src/instance"
+	"github.com/seventv/twitch-edge/src/svc/events"
 )
 
 type Instances struct {

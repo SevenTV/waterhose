@@ -1,14 +1,14 @@
-package app
+package master
 
 import (
 	"net"
 	"sync"
 
-	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-chat-controller/src/app/server"
-	"github.com/seventv/twitch-chat-controller/src/global"
+	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
+	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/twitch-edge/src/modes/master/http"
+	"github.com/seventv/twitch-edge/src/modes/master/server"
 	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc"
 )
 
@@ -19,7 +19,7 @@ func New(gCtx global.Context) <-chan struct{} {
 	done := make(chan struct{})
 
 	var (
-		httpSrv *HttpServer
+		httpSrv *http.HttpServer
 		grpcSrv *grpc.Server
 	)
 
@@ -41,10 +41,7 @@ func New(gCtx global.Context) <-chan struct{} {
 	go func() {
 		defer wg.Done()
 
-		httpSrv = &HttpServer{
-			gCtx:   gCtx,
-			Server: &fasthttp.Server{},
-		}
+		httpSrv = http.New(gCtx)
 
 		if err := httpSrv.Start(gCtx.Config().API.HttpBind); err != nil {
 			logrus.Fatal("failed to listen to addresss: ", err)

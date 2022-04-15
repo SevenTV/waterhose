@@ -1,8 +1,8 @@
 package instance
 
 import (
-	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-chat-controller/src/structures"
+	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
+	"github.com/seventv/twitch-edge/src/structures"
 )
 
 type AutoScaler interface {

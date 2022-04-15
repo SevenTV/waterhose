@@ -9,10 +9,10 @@ import (
 
 	"github.com/SevenTV/Common/eventemitter"
 	"github.com/SevenTV/Common/utils"
-	pb "github.com/seventv/twitch-chat-controller/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-chat-controller/src/global"
-	"github.com/seventv/twitch-chat-controller/src/structures"
-	"github.com/seventv/twitch-chat-controller/src/svc/events"
+	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
+	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/twitch-edge/src/structures"
+	"github.com/seventv/twitch-edge/src/svc/events"
 	"github.com/sirupsen/logrus"
 )
 

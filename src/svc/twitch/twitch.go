@@ -14,9 +14,9 @@ import (
 	"github.com/SevenTV/Common/redis"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nicklaw5/helix"
-	"github.com/seventv/twitch-chat-controller/loaders"
-	"github.com/seventv/twitch-chat-controller/src/global"
-	"github.com/seventv/twitch-chat-controller/src/instance"
+	"github.com/seventv/twitch-edge/loaders"
+	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/twitch-edge/src/instance"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary

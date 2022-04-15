@@ -3,8 +3,8 @@ package k8s
 import (
 	"context"
 
-	"github.com/seventv/twitch-chat-controller/src/global"
-	"github.com/seventv/twitch-chat-controller/src/instance"
+	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/twitch-edge/src/instance"
 	"github.com/sirupsen/logrus"
 
 	appsv1 "k8s.io/api/apps/v1"

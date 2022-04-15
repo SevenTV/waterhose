@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/SevenTV/Common/redis"
-	"github.com/seventv/twitch-chat-controller/src/instance"
+	"github.com/seventv/twitch-edge/src/instance"
 
 	rawRedis "github.com/go-redis/redis/v8"
 )

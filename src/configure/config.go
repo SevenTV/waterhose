@@ -32,6 +32,7 @@ func New() *Config {
 	checkErr(tmp.ReadConfig(defaultConfig))
 	checkErr(config.MergeConfigMap(viper.AllSettings()))
 
+	pflag.String("mode", "", "The running mode, `controller` or `edge`")
 	pflag.String("config", "config.yaml", "Config file location")
 	pflag.Bool("noheader", false, "Disable the startup header")
 
@@ -41,14 +42,15 @@ func New() *Config {
 	// File
 	config.SetConfigFile(config.GetString("config"))
 	config.AddConfigPath(".")
-	checkErr(config.ReadInConfig())
-	checkErr(config.MergeInConfig())
+	if err := config.ReadInConfig(); err == nil {
+		checkErr(config.MergeInConfig())
+	}
 
 	BindEnvs(config, Config{})
 
 	// Environment
 	config.AutomaticEnv()
-	config.SetEnvPrefix("TCC")
+	config.SetEnvPrefix("TI")
 	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	config.AllowEmptyEnv(true)
 
@@ -80,10 +82,18 @@ func BindEnvs(config *viper.Viper, iface interface{}, parts ...string) {
 	}
 }
 
+type Mode string
+
+const (
+	ModeMaster Mode = "master"
+	ModeSlave  Mode = "slave"
+)
+
 type Config struct {
 	Level      string `mapstructure:"level" json:"level"`
 	ConfigFile string `mapstructure:"config" json:"config"`
 	NoHeader   bool   `mapstructure:"noheader" json:"noheader"`
+	Mode       Mode   `mapstructure:"mode" json:"mode"`
 
 	API struct {
 		Bind     string `mapstructure:"bind" json:"bind"`
@@ -121,4 +131,12 @@ type Config struct {
 		Database string `mapstructure:"database" json:"database"`
 		Direct   bool   `mapstructure:"direct" bson:"direct"`
 	} `mapstructure:"mongo" json:"mongo"`
+}
+
+func (c Config) IsMaster() bool {
+	return c.Mode == ModeMaster
+}
+
+func (c Config) IsSlave() bool {
+	return c.Mode == ModeSlave
 }

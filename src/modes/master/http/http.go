@@ -1,4 +1,4 @@
-package app
+package http
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/SevenTV/Common/redis"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nicklaw5/helix"
-	"github.com/seventv/twitch-chat-controller/src/global"
+	"github.com/seventv/twitch-edge/src/global"
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/crypto/sha3"
@@ -34,6 +34,13 @@ type OAuthResponse struct {
 type HttpServer struct {
 	gCtx global.Context
 	*fasthttp.Server
+}
+
+func New(gCtx global.Context) *HttpServer {
+	return &HttpServer{
+		gCtx:   gCtx,
+		Server: &fasthttp.Server{},
+	}
 }
 
 func (h *HttpServer) Start(addr string) error {

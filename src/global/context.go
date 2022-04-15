@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/seventv/twitch-chat-controller/src/configure"
+	"github.com/seventv/twitch-edge/src/configure"
 )
 
 type Context interface {
