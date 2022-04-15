@@ -110,6 +110,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 								"twitch_login": channel.TwitchLogin,
 								"priority":     channel.Priority,
 								"edge_node":    channel.EdgeNode,
+								"last_updated": time.Now(),
 							},
 						})
 						operation.SetUpsert(true)
@@ -135,6 +136,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 			_, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).BulkWrite(ctx, newChannels)
 			if err != nil {
+				// TODO
 				logrus.Fatal(err)
 			}
 
@@ -229,7 +231,7 @@ func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
 		statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().K8S.SatefulsetName)
 		if err != nil {
 			// unknown as to why this error occured.
-			// todo fix this error
+			// TODO fix this error
 			logrus.Fatal(err)
 		}
 
@@ -242,6 +244,7 @@ func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
 
 		return nil
 	}); err != nil {
+		// TODO
 		logrus.Fatal(err)
 	}
 }

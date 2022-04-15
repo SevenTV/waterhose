@@ -13,7 +13,6 @@ This document aims to define what happens during edge cases on the Twitch IRC
 -> @emote-only=0;followers-only=-1;r9k=0;rituals=0;room-id=121903137;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #troykomodo
 ```
 
-
 ## Join banned channel
 
 ```
@@ -21,12 +20,10 @@ This document aims to define what happens during edge cases on the Twitch IRC
 -> @msg-id=msg_channel_suspended :tmi.twitch.tv NOTICE #starjadian :This channel does not exist or has been suspended.
 ```
 
-
 ## Channel changes name
 
-    Nothing happens, no part the room just becomes invalid you cannot send messages and cannot receive messages. 
+    Nothing happens, no part the room just becomes invalid you cannot send messages and cannot receive messages.
     Not sure how to detect this one.
-
 
 ## Join non-existant channel
 
@@ -36,13 +33,11 @@ This document aims to define what happens during edge cases on the Twitch IRC
 
     There is no response, so you must implement a timeout here, if you dont get a response in 20s consider the channel non-existant.
 
-
 ## Channel gets banned
 
     Untested
 
     What likely happens is you get a PART message and then on reconnect you are trying to join a suspended channel.
-
 
 ## Bot gets banned
 

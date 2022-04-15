@@ -11,7 +11,15 @@ import (
 	"github.com/seventv/twitch-chat-controller/src/instance"
 )
 
-const JoinLimitPerTenSeconds = 2000
+type RateLimit struct {
+	Count int
+	Time  time.Duration
+}
+
+var VerifiedJoinChannel = RateLimit{
+	Count: 2000,
+	Time:  time.Second * 10,
+}
 
 type pqJoinChannel struct {
 	once    sync.Once
@@ -31,10 +39,10 @@ func New() instance.RateLimiter {
 }
 
 func (r *RateLimiter) Start() {
-	tick := time.NewTicker(time.Second*10 + utils.JitterTime(time.Second, time.Second*5))
+	tick := time.NewTicker(VerifiedJoinChannel.Time + utils.JitterTime(time.Second, time.Second*5))
 	for range tick.C {
 		r.mtx.Lock()
-		for i := 0; i < JoinLimitPerTenSeconds; i++ {
+		for i := 0; i < VerifiedJoinChannel.Count; i++ {
 			if r.pq.Len() != 0 {
 				item := r.pq.Pop().Value()
 				item.once.Do(func() {

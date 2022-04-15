@@ -70,6 +70,28 @@ func main() {
 
 	gCtx := global.New(c, config)
 
+	var appDone <-chan struct{}
+	done := make(chan struct{})
+	go func() {
+		<-sig
+		cancel()
+		go func() {
+			select {
+			case <-time.After(time.Minute):
+			case <-sig:
+			}
+			logrus.Fatal("force shutdown")
+		}()
+
+		logrus.Info("shutting down")
+
+		if appDone != nil {
+			<-appDone
+		}
+
+		close(done)
+	}()
+
 	{
 		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
 		redisInst, err := cRedis.Setup(ctx, cRedis.SetupOptions{
@@ -133,28 +155,9 @@ func main() {
 		logrus.Info("ratelimiter, ok")
 	}
 
-	appDone := app.New(gCtx)
+	appDone = app.New(gCtx)
 
 	logrus.Info("running")
-
-	done := make(chan struct{})
-	go func() {
-		<-sig
-		cancel()
-		go func() {
-			select {
-			case <-time.After(time.Minute):
-			case <-sig:
-			}
-			logrus.Fatal("force shutdown")
-		}()
-
-		logrus.Info("shutting down")
-
-		<-appDone
-
-		close(done)
-	}()
 
 	<-done
 
