@@ -88,7 +88,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 					channels := a.edges[presetEdgeIdx]
 
-					if len(channels) < gCtx.Config().Irc.ChannelLimit || preset {
+					if len(channels) < gCtx.Config().Master.Irc.ChannelLimitPerSlave || preset {
 						channel := structures.Channel{
 							TwitchID:    usr.ID,
 							TwitchLogin: usr.Login,
@@ -227,8 +227,12 @@ func (a *autoScaler) GetChannelsForEdge(idx int) []structures.Channel {
 }
 
 func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
+	if !a.gCtx.Config().Master.K8S.Enabled {
+		return
+	}
+
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().K8S.SatefulsetName)
+		statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().Master.K8S.SatefulsetName)
 		if err != nil {
 			// unknown as to why this error occured.
 			// TODO fix this error

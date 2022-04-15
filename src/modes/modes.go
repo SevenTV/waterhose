@@ -54,9 +54,9 @@ func setupGlobal(gCtx global.Context) {
 	if isMaster {
 		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
 		mongoInst, err := cMongo.Setup(ctx, cMongo.SetupOptions{
-			URI:      gCtx.Config().Mongo.URI,
-			DB:       gCtx.Config().Mongo.Database,
-			Direct:   gCtx.Config().Mongo.Direct,
+			URI:      gCtx.Config().Master.Mongo.URI,
+			DB:       gCtx.Config().Master.Mongo.Database,
+			Direct:   gCtx.Config().Master.Mongo.Direct,
 			CollSync: false,
 		})
 		cancel()
@@ -67,7 +67,7 @@ func setupGlobal(gCtx global.Context) {
 		gCtx.Inst().Mongo = mongoInst
 	}
 
-	if isMaster {
+	if isMaster && gCtx.Config().Master.K8S.Enabled {
 		gCtx.Inst().K8S = k8s.New(gCtx)
 		logrus.Info("k8s, ok")
 	}

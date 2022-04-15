@@ -31,12 +31,12 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 	ctx, cancel := context.WithCancel(srv.Context())
 	defer cancel()
 
-	edgeIdx, err := strconv.Atoi(strings.TrimPrefix(req.NodeName, s.gCtx.Config().K8S.SatefulsetName+"-"))
+	edgeIdx, err := strconv.Atoi(strings.TrimPrefix(req.NodeName, s.gCtx.Config().Master.K8S.SatefulsetName+"-"))
 	if err != nil {
 		return ErrBadNodeName
 	}
 
-	accountID := s.gCtx.Config().Irc.BotAccountID
+	accountID := s.gCtx.Config().Master.Irc.BotAccountID
 
 	loginEventCh := make(chan struct{}, 5)
 	defer close(loginEventCh)
@@ -52,7 +52,8 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 
 	joinEventCh := make(chan []structures.Channel, 5)
 	defer close(joinEventCh)
-	joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(edgeIdx)
+
+	first := false
 
 	defer s.gCtx.Inst().EventEmitter.Listen(eventemitter.NewEventListener(map[string]reflect.Value{
 		events.TwitchChatLoginFormat(accountID): reflect.ValueOf(loginEventCh),
@@ -64,6 +65,10 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-loginEventCh:
+			if !first {
+				joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(edgeIdx)
+				first = false
+			}
 			loginTick.Reset(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 			utils.EmptyChannel(loginEventCh)
 

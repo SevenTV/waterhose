@@ -25,7 +25,8 @@ func New(gCtx global.Context) <-chan struct{} {
 
 	go func() {
 		defer wg.Done()
-		ln, err := net.Listen("tcp", gCtx.Config().API.Bind)
+
+		ln, err := net.Listen("tcp", gCtx.Config().Master.API.Bind)
 		if err != nil {
 			logrus.Fatal("failed to listen to addresss: ", err)
 		}
@@ -42,8 +43,7 @@ func New(gCtx global.Context) <-chan struct{} {
 		defer wg.Done()
 
 		httpSrv = http.New(gCtx)
-
-		if err := httpSrv.Start(gCtx.Config().API.HttpBind); err != nil {
+		if err := httpSrv.Start(gCtx.Config().Master.API.HttpBind); err != nil {
 			logrus.Fatal("failed to listen to addresss: ", err)
 		}
 	}()

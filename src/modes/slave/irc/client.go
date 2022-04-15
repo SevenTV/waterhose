@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
 var errReconnect = fmt.Errorf("reconnect")
@@ -41,6 +42,9 @@ type Client struct {
 
 func New(username string, oauth string) *Client {
 	logrus.Info("new client")
+	if username == "" || oauth == "" {
+		panic(fmt.Errorf("bad username or oauth: %s", username))
+	}
 	return &Client{
 		err:     &errorChan{},
 		writeCh: make(chan string, 100),
@@ -51,9 +55,10 @@ func New(username string, oauth string) *Client {
 	}
 }
 
-func (c *Client) Connect() (err error) {
+func (c *Client) Connect(ctx context.Context) error {
 	for {
-		err = c.init()
+		err := c.init(ctx)
+		c.Shutdown()
 		switch err {
 		case errReconnect, nil:
 			if c.onReconnect != nil {
@@ -61,7 +66,7 @@ func (c *Client) Connect() (err error) {
 			}
 			continue
 		default:
-			return
+			return err
 		}
 	}
 }
@@ -70,11 +75,14 @@ func (c *Client) Shutdown() {
 	_ = c.conn.Close()
 }
 
-func (c *Client) SetOauth(oauth string) {
+func (c *Client) SetOAuth(oauth string) {
 	c.login.oauth = oauth
 }
 
-func (c *Client) init() error {
+func (c *Client) init(ctx context.Context) error {
+	lCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	conn, err := tls.Dial("tcp", "irc.chat.twitch.tv:6697", &tls.Config{})
 	if err != nil {
 		return err
@@ -101,6 +109,18 @@ func (c *Client) init() error {
 	go c.read(conn)
 	go c.write(conn)
 	go c.pinger()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.err.Error(ctx.Err())
+		case <-lCtx.Done():
+			if ctx.Err() != nil {
+				c.err.Error(ctx.Err())
+			}
+			return
+		}
+	}()
 
 	return <-c.err.ch
 }
@@ -170,7 +190,7 @@ func (c *Client) pinger() {
 
 		log.Println("ping failed")
 	}()
-	tick := time.NewTicker(time.Second * 15)
+	tick := time.NewTicker(time.Minute * 3)
 	for range tick.C {
 		if c.pingSent {
 			return

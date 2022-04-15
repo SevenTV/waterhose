@@ -83,11 +83,11 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	formBody := url.Values{}
-	formBody.Set("client_id", h.gCtx.Config().Twitch.ClientID)
-	formBody.Set("client_secret", h.gCtx.Config().Twitch.ClientSecret)
+	formBody.Set("client_id", h.gCtx.Config().Master.Twitch.ClientID)
+	formBody.Set("client_secret", h.gCtx.Config().Master.Twitch.ClientSecret)
 	formBody.Set("code", string(code))
 	formBody.Set("grant_type", "authorization_code")
-	formBody.Set("redirect_uri", h.gCtx.Config().Twitch.RedirectURI)
+	formBody.Set("redirect_uri", h.gCtx.Config().Master.Twitch.RedirectURI)
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://id.twitch.tv/oauth2/token", strings.NewReader(formBody.Encode()))
 	if err != nil {
 		ctx.SetStatusCode(500)
@@ -130,7 +130,7 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+tokenResp.AccessToken)
-	req.Header.Add("Client-Id", h.gCtx.Config().Twitch.ClientID)
+	req.Header.Add("Client-Id", h.gCtx.Config().Master.Twitch.ClientID)
 
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
@@ -178,8 +178,8 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 
 func (h *HttpServer) AuthLoginHandler(ctx *fasthttp.RequestCtx) {
 	v := url.Values{}
-	v.Set("client_id", h.gCtx.Config().Twitch.ClientID)
-	v.Set("redirect_uri", h.gCtx.Config().Twitch.RedirectURI)
+	v.Set("client_id", h.gCtx.Config().Master.Twitch.ClientID)
+	v.Set("redirect_uri", h.gCtx.Config().Master.Twitch.RedirectURI)
 	v.Set("response_type", "code")
 	v.Set("scope", "channel:moderate chat:edit chat:read whispers:read whispers:edit")
 

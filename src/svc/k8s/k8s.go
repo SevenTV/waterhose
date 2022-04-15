@@ -26,13 +26,13 @@ func New(gCtx global.Context) instance.K8S {
 		config *restclient.Config
 		err    error
 	)
-	if gCtx.Config().K8S.InCluster {
+	if gCtx.Config().Master.K8S.InCluster {
 		config, err = restclient.InClusterConfig()
 		if err != nil {
 			logrus.Fatal("failed to get k8s config: ", err)
 		}
 	} else {
-		config, err = clientcmd.BuildConfigFromFlags("", gCtx.Config().K8S.ConfigPath)
+		config, err = clientcmd.BuildConfigFromFlags("", gCtx.Config().Master.K8S.ConfigPath)
 		if err != nil {
 			logrus.Fatal("failed to get k8s config: ", err)
 		}
@@ -43,7 +43,7 @@ func New(gCtx global.Context) instance.K8S {
 		logrus.Fatal("failed to connect to k8s api: ", err)
 	}
 
-	statefulSetClient := client.AppsV1().StatefulSets(gCtx.Config().K8S.Namespace)
+	statefulSetClient := client.AppsV1().StatefulSets(gCtx.Config().Master.K8S.Namespace)
 
 	return &k8sApi{
 		gCtx:              gCtx,

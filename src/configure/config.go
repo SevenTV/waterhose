@@ -95,15 +95,50 @@ type Config struct {
 	NoHeader   bool   `mapstructure:"noheader" json:"noheader"`
 	Mode       Mode   `mapstructure:"mode" json:"mode"`
 
-	API struct {
-		Bind     string `mapstructure:"bind" json:"bind"`
-		HttpBind string `mapstructure:"http_bind" json:"http_bind"`
-	} `mapstructure:"api" json:"api"`
+	K8S struct {
+		NodeName string `mapstructure:"node_name" json:"node_name"`
+	} `mapstructure:"k8s" json:"k8s"`
 
-	Irc struct {
-		ChannelLimit int    `mapstructure:"channel_limit" json:"channel_limit"`
-		BotAccountID string `mapstructure:"bot_account_id" json:"bot_account_id"`
-	} `mapstructure:"irc" json:"irc"`
+	Master struct {
+		API struct {
+			Bind     string `mapstructure:"bind" json:"bind"`
+			HttpBind string `mapstructure:"http_bind" json:"http_bind"`
+		} `mapstructure:"api" json:"api"`
+
+		Irc struct {
+			ChannelLimitPerSlave int    `mapstructure:"channel_limit_per_slave" json:"channel_limit_per_slave"`
+			BotAccountID         string `mapstructure:"bot_account_id" json:"bot_account_id"`
+		} `mapstructure:"irc" json:"irc"`
+
+		Twitch struct {
+			ClientID     string `mapstructure:"client_id" json:"client_id"`
+			ClientSecret string `mapstructure:"client_secret" json:"client_secret"`
+			RedirectURI  string `mapstructure:"redirect_uri" json:"redirect_uri"`
+		} `mapstructure:"twitch" json:"twitch"`
+
+		K8S struct {
+			Enabled        bool   `mapstructure:"enabled" json:"enabled"`
+			Namespace      string `mapstructure:"namespace" json:"namespace"`
+			InCluster      bool   `mapstructure:"in_cluster" json:"in_cluster"`
+			ConfigPath     string `mapstructure:"config_path" json:"config_path"`
+			SatefulsetName string `mapstructure:"statefulset_name" json:"statefulset_name"`
+		} `mapstructure:"k8s" json:"k8s"`
+
+		Mongo struct {
+			URI      string `mapstructure:"uri" json:"uri"`
+			Database string `mapstructure:"database" json:"database"`
+			Direct   bool   `mapstructure:"direct" bson:"direct"`
+		} `mapstructure:"mongo" json:"mongo"`
+	} `mapstructure:"master" json:"master"`
+
+	Slave struct {
+		API struct {
+			GrpcDial string `mapstructure:"grpc_dial" json:"grpc_dial"`
+		} `mapstructure:"api" json:"api"`
+		IRC struct {
+			ChannelLimitPerConn int `mapstructure:"channel_limit_per_conn" json:"channel_limit_per_conn"`
+		} `mapstructure:"irc" json:"irc"`
+	} `mapstructure:"slave" json:"slave"`
 
 	Redis struct {
 		Username  string   `mapstructure:"username" json:"username"`
@@ -112,25 +147,6 @@ type Config struct {
 		Addresses []string `mapstructure:"addresses" json:"addresses"`
 		Sentinel  bool     `mapstructure:"sentinel" json:"sentinel"`
 	} `mapstructure:"redis" json:"redis"`
-
-	Twitch struct {
-		ClientID     string `mapstructure:"client_id" json:"client_id"`
-		ClientSecret string `mapstructure:"client_secret" json:"client_secret"`
-		RedirectURI  string `mapstructure:"redirect_uri" json:"redirect_uri"`
-	} `mapstructure:"twitch" json:"twitch"`
-
-	K8S struct {
-		Namespace      string `mapstructure:"namespace" json:"namespace"`
-		InCluster      bool   `mapstructure:"in_cluster" json:"in_cluster"`
-		ConfigPath     string `mapstructure:"config_path" json:"config_path"`
-		SatefulsetName string `mapstructure:"statefulset_name" json:"statefulset_name"`
-	} `mapstructure:"k8s" json:"k8s"`
-
-	Mongo struct {
-		URI      string `mapstructure:"uri" json:"uri"`
-		Database string `mapstructure:"database" json:"database"`
-		Direct   bool   `mapstructure:"direct" bson:"direct"`
-	} `mapstructure:"mongo" json:"mongo"`
 }
 
 func (c Config) IsMaster() bool {

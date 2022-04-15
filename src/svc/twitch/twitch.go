@@ -36,9 +36,9 @@ func New(gCtx global.Context) instance.Twitch {
 				errs := make([]error, len(keys))
 
 				client, err := helix.NewClient(&helix.Options{
-					ClientID:     gCtx.Config().Twitch.ClientID,
-					ClientSecret: gCtx.Config().Twitch.ClientSecret,
-					RedirectURI:  gCtx.Config().Twitch.RedirectURI,
+					ClientID:     gCtx.Config().Master.Twitch.ClientID,
+					ClientSecret: gCtx.Config().Master.Twitch.ClientSecret,
+					RedirectURI:  gCtx.Config().Master.Twitch.RedirectURI,
 				})
 				if err != nil {
 					for i := 0; i < len(errs); i++ {
@@ -129,8 +129,8 @@ func (t *twitchController) GetOAuth(ctx context.Context, id string) (helix.Acces
 
 	if createdAt.Add(time.Second * time.Duration(float64(creds.ExpiresIn)*0.7)).Before(time.Now()) {
 		formBody := url.Values{}
-		formBody.Set("client_id", t.gCtx.Config().Twitch.ClientID)
-		formBody.Set("client_secret", t.gCtx.Config().Twitch.ClientSecret)
+		formBody.Set("client_id", t.gCtx.Config().Master.Twitch.ClientID)
+		formBody.Set("client_secret", t.gCtx.Config().Master.Twitch.ClientSecret)
 		formBody.Set("grant_type", "refresh_token")
 		formBody.Set("refresh_token", string(creds.RefreshToken))
 

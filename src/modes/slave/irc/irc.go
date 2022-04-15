@@ -33,6 +33,10 @@ const (
 	MessageTypeUserState       = "USERSTATE"
 	MessageTypeClearChat       = "CLEARCHAT"
 	MessageTypeReconnect       = "RECONNECT"
+	MessageTypeUserNotice      = "USERNOTICE"
+
+	MsgIdChannelSuspended = "msg_channel_suspended"
+	MsgIdBanned           = "msg_banned"
 )
 
 func ToMessageType(s string) MessageType {
@@ -59,6 +63,7 @@ func ToMessageType(s string) MessageType {
 		MessageTypeRoomState,
 		MessageTypeUserState,
 		MessageTypeClearChat,
+		MessageTypeUserNotice,
 		MessageTypeReconnect:
 		return m
 	}
@@ -73,7 +78,7 @@ type Message struct {
 	Channel string
 	User    string
 	Content string
-	Tags    map[string]string
+	Tags    IrcTags
 }
 
 func ParseMessage(line string) (Message, error) {
@@ -117,7 +122,18 @@ func ParseMessage(line string) (Message, error) {
 	}
 	m.Type = ToMessageType(splits[1])
 	switch m.Type {
-	case MessageTypeUnknown, MessageTypeGlobalUserState:
+	case MessageTypeUnknown,
+		MessageTypeGlobalUserState,
+		MessageType001,
+		MessageType002,
+		MessageType003,
+		MessageType004,
+		MessageType353,
+		MessageType366,
+		MessageType372,
+		MessageType375,
+		MessageType376,
+		MessageTypeCap:
 		return m, nil
 	default:
 		line = splits[2]
@@ -172,4 +188,18 @@ func ParseTags(msg string) (map[string]string, int, error) {
 	}
 
 	return tags, i, nil
+}
+
+type IrcTags map[string]string
+
+func (i IrcTags) MessageID() string {
+	return i["msg-id"]
+}
+
+func (i IrcTags) ChannelSuspended() bool {
+	return i.MessageID() == MsgIdChannelSuspended
+}
+
+func (i IrcTags) Banned() bool {
+	return i.MessageID() == MsgIdBanned
 }
