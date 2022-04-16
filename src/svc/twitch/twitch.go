@@ -17,7 +17,7 @@ import (
 	"github.com/nicklaw5/helix"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/instance"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -49,7 +49,9 @@ func New(gCtx global.Context) instance.Twitch {
 							return err
 						}
 						diff := time.Until(time.Unix(int64(epoch), 0))
-						logrus.Info("hit twitch ratelimit: ", diff)
+						zap.S().Infow("hit twitch ratelimit",
+							"delay", diff,
+						)
 						if diff > 0 {
 							time.Sleep(diff)
 						}
@@ -58,7 +60,9 @@ func New(gCtx global.Context) instance.Twitch {
 					},
 				})
 				if err != nil {
-					logrus.Error("twitch error: ", err)
+					zap.S().Errorw("twitch error",
+						"error", err,
+					)
 					for i := 0; i < len(errs); i++ {
 						errs[i] = err
 					}
@@ -69,10 +73,12 @@ func New(gCtx global.Context) instance.Twitch {
 				tkn, err := gCtx.Inst().Redis.Get(ctx, redis.Key("twitch-app-token"))
 				cancel()
 				if err != nil {
-					logrus.Debug("fetching twitch app token")
+					zap.S().Debug("fetching twitch app token")
 					rTkn, err := client.RequestAppAccessToken(nil)
 					if err != nil {
-						logrus.Error("twitch error: ", err)
+						zap.S().Errorw("twitch error",
+							"error", err,
+						)
 						for i := 0; i < len(errs); i++ {
 							errs[i] = err
 						}
@@ -85,7 +91,9 @@ func New(gCtx global.Context) instance.Twitch {
 					err = gCtx.Inst().Redis.Set(ctx, redis.Key("twitch-app-token"), tkn)
 					cancel()
 					if err != nil {
-						logrus.Error("twitch error: ", err)
+						zap.S().Errorw("twitch error",
+							"error", err,
+						)
 						for i := 0; i < len(errs); i++ {
 							errs[i] = err
 						}
@@ -96,12 +104,13 @@ func New(gCtx global.Context) instance.Twitch {
 
 				client.SetAppAccessToken(tkn)
 
-				logrus.Debug("fetching twitch users")
 				resp, err := client.GetUsers(&helix.UsersParams{
 					IDs: keys,
 				})
 				if err != nil {
-					logrus.Error("twitch error: ", err)
+					zap.S().Errorw("twitch error",
+						"error", err,
+					)
 					for i := 0; i < len(errs); i++ {
 						errs[i] = err
 					}
@@ -122,7 +131,6 @@ func New(gCtx global.Context) instance.Twitch {
 					}
 				}
 
-				logrus.Debug("fetched twitch users")
 				return users, errs
 
 			},

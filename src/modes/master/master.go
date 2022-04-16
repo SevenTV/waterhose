@@ -8,7 +8,7 @@ import (
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/modes/master/http"
 	"github.com/seventv/twitch-edge/src/modes/master/server"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -28,14 +28,18 @@ func New(gCtx global.Context) <-chan struct{} {
 
 		ln, err := net.Listen("tcp", gCtx.Config().Master.API.Bind)
 		if err != nil {
-			logrus.Fatal("failed to listen to addresss: ", err)
+			zap.S().Fatalw("failed to listen to addresss: ",
+				"error", err,
+			)
 		}
 
 		grpcSrv = grpc.NewServer()
 		pb.RegisterTwitchEdgeServiceServer(grpcSrv, server.New(gCtx))
 
 		if err := grpcSrv.Serve(ln); err != nil {
-			logrus.Fatal("failed to listen to addresss: ", err)
+			zap.S().Fatalw("failed to listen to addresss: ",
+				"error", err,
+			)
 		}
 	}()
 
@@ -44,7 +48,9 @@ func New(gCtx global.Context) <-chan struct{} {
 
 		httpSrv = http.New(gCtx)
 		if err := httpSrv.Start(gCtx.Config().Master.API.HttpBind); err != nil {
-			logrus.Fatal("failed to listen to addresss: ", err)
+			zap.S().Fatalw("failed to listen to addresss: ",
+				"error", err,
+			)
 		}
 	}()
 

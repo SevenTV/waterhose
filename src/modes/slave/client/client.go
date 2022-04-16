@@ -9,7 +9,7 @@ import (
 	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/modes/slave/manager"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -48,7 +48,7 @@ func New(gCtx global.Context) <-chan struct{} {
 	go func() {
 		failedN := 0
 		for {
-			logrus.Info("starting grpc")
+			zap.S().Info("starting grpc")
 			ctx, cancel := context.WithCancel(gCtx)
 			err := cl.initGrpc(ctx)
 			cancel()
@@ -57,12 +57,12 @@ func New(gCtx global.Context) <-chan struct{} {
 				if gCtx.Err() != nil {
 					return
 				}
-				logrus.Error("grpc disconnect with error: ", err)
+				zap.S().Errorw("grpc disconnect with error",
+					"error", err,
+				)
 			} else {
-				logrus.Warn("disconnected from grpc")
+				zap.S().Warn("disconnected from grpc")
 			}
-
-			logrus.Info(utils.JitterTime(time.Second, time.Second*10))
 
 			time.Sleep(time.Second*5 + utils.JitterTime(time.Second, time.Second*10))
 		}
@@ -89,7 +89,7 @@ func (c *Client) initGrpc(ctx context.Context) error {
 		return fmt.Errorf("failed to register node: %v", err)
 	}
 
-	logrus.Info("connected to grpc")
+	zap.S().Info("connected to grpc")
 
 	for {
 		msg, err := events.Recv()
@@ -100,18 +100,22 @@ func (c *Client) initGrpc(ctx context.Context) error {
 		switch payload := msg.Payload.(type) {
 		case *pb.RegisterEdgeResponse_JoinChannelPayload_:
 			channels := payload.JoinChannelPayload.GetChannels()
-			logrus.Infof("recieved %d channels to join", len(channels))
+			zap.S().Infow("recieved channels to join",
+				"length", len(channels),
+			)
 			for _, v := range channels {
 				c.manager.JoinChat(v)
 			}
 		case *pb.RegisterEdgeResponse_PartChannelPayload_:
 			channels := payload.PartChannelPayload.GetChannels()
-			logrus.Infof("recieved %d channels to part", len(channels))
+			zap.S().Infof("recieved %d channels to part",
+				"length", len(channels),
+			)
 			for _, v := range channels {
 				c.manager.PartChat(v)
 			}
 		case *pb.RegisterEdgeResponse_LoginPayload_:
-			logrus.Infof("recieved login info")
+			zap.S().Info("recieved login info")
 			c.manager.SetLoginCreds(manager.ConnectionOptions{
 				Username: payload.LoginPayload.GetChannel().GetLogin(),
 				OAuth:    "oauth:" + payload.LoginPayload.GetOauth(),

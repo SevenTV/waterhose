@@ -6,14 +6,16 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 func checkErr(err error) {
 	if err != nil {
-		logrus.WithError(err).Fatal("config")
+		zap.S().Fatalw("config",
+			"error", err,
+		)
 	}
 }
 

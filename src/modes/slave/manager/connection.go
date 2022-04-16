@@ -12,7 +12,7 @@ import (
 	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/modes/slave/irc"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type ChannelState string
@@ -93,7 +93,9 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 							Channel: v.Raw,
 							Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL,
 						}); err != nil {
-							logrus.Error("failed to publish event to master: ", err)
+							zap.S().Errorw("failed to publish event to master",
+								"error", err,
+							)
 						}
 					}
 				}
@@ -104,14 +106,15 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 
 	go func() {
 		for {
-			logrus.WithField("idx", conn.idx).Infof("twitch client connecting")
-
 			if err := conn.getNewConnection(gCtx); err != nil {
 				if gCtx.Err() != nil {
 					return
 				}
 
-				logrus.WithField("idx", conn.idx).Errorf("redis: %e", err)
+				zap.S().Errorw("redis",
+					"id", conn.idx,
+					"error", err,
+				)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
 
@@ -121,7 +124,10 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 					return
 				}
 
-				logrus.WithField("idx", conn.idx).Errorf("twitch client disconnected: %e", err)
+				zap.S().Errorw("twitch client disconnected",
+					"id", conn.idx,
+					"erorr", err,
+				)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
 		}
@@ -152,7 +158,9 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 }
 
 func (c *Connection) onConnect() {
-	logrus.WithField("idx", c.idx).Info("twitch client connected")
+	zap.S().Infow("twitch client connected",
+		"idx", c.idx,
+	)
 	c.channels.Range(func(key string, value *Channel) bool {
 		c.JoinChannel(value.Raw)
 		return true
@@ -160,7 +168,9 @@ func (c *Connection) onConnect() {
 }
 
 func (c *Connection) onReconnect() {
-	logrus.WithField("idx", c.idx).Info("twitch client reconnect")
+	zap.S().Infow("twitch client reconnected",
+		"idx", c.idx,
+	)
 	time.Sleep(utils.JitterTime(time.Second*5, time.Second*10))
 }
 
@@ -175,34 +185,34 @@ func (c *Connection) onMessage(m irc.Message) {
 	case irc.MessageTypeJoin:
 		if m.User == c.username {
 			channel.Update(ChannelStateJoined)
-			logrus.WithField("idx", c.idx).Warn("joined chat: ", channel)
 		}
 	case irc.MessageTypePart:
 		if m.User == c.username {
-			logrus.WithField("idx", c.idx).Warn("parted chat: ", channel)
 			channel.Update(ChannelStateParted)
 			c.JoinChannel(channel.Raw)
 		}
 	case irc.MessageTypeNotice:
 		if m.Tags.ChannelSuspended() {
-			logrus.WithField("idx", c.idx).Warn("channel suspended: ", channel)
 			channel.Update(ChannelStateSuspended)
 			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
 				Channel: channel.Raw,
 				Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL,
 			}); err != nil {
-				logrus.Error("failed to publish event to master: ", err)
+				zap.S().Errorw("failed to publish event to master",
+					"error", err,
+				)
 			}
 			return
 		}
 
 		if m.Tags.Banned() {
-			logrus.WithField("idx", c.idx).Warn("banned from channel: ", channel)
 			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
 				Channel: channel.Raw,
 				Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_BANNED,
 			}); err != nil {
-				logrus.Error("failed to publish event to master: ", err)
+				zap.S().Errorw("failed to publish event to master",
+					"error", err,
+				)
 			}
 			channel.Update(ChannelStateBanned)
 			go c.manager.joinAnon(channel.Raw)
@@ -216,7 +226,9 @@ func (c *Connection) onMessage(m irc.Message) {
 	pipe.Publish(c.gCtx, fmt.Sprintf("twitch-irc-chat-messages:%s:GLOBAL", m.Type), m.Raw)
 	pipe.Publish(c.gCtx, fmt.Sprintf("twitch-irc-chat-messages:%s:%s", m.Type, channel.Raw.Id), m.Raw)
 	if _, err := pipe.Exec(c.gCtx); err != nil {
-		logrus.Error("failed to publish twitch message: ", err)
+		zap.S().Errorw("failed to publish twitch message",
+			"error", err,
+		)
 	}
 }
 
@@ -238,7 +250,9 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 	go func() {
 		if c.idx != 0 {
 			if err := c.manager.rl(c.gCtx, channel); err != nil {
-				logrus.Error("failed to get rates on channel: ", err)
+				zap.S().Errorw("failed to get rates on channel",
+					"error", err,
+				)
 				return
 			}
 		}

@@ -16,8 +16,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nicklaw5/helix"
 	"github.com/seventv/twitch-edge/src/global"
-	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -92,7 +92,9 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("internal server error")
-		logrus.Error("error on callback: ", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -101,7 +103,9 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("internal server error")
-		logrus.Error("error on callback: ", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 
@@ -110,14 +114,19 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("internal server error")
-		logrus.Error("error on callback: ", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 	tokenResp := helix.AccessCredentials{}
 	if err := json.Unmarshal(data, &tokenResp); err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("bad response from twitch")
-		logrus.Errorf("error on callback: %e - %s", err, data)
+		zap.S().Errorw("error on callback",
+			"error", err,
+			"data", data,
+		)
 		return
 	}
 
@@ -125,7 +134,9 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("internal server error")
-		logrus.Error("error on callback: ", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 
@@ -136,7 +147,9 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("internal server error")
-		logrus.Error("error on callback: ", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 
@@ -145,7 +158,9 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("internal server error")
-		logrus.Error("error on callback: ", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 
@@ -153,14 +168,20 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err := json.Unmarshal(data, &userResp); err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("bad response from twitch")
-		logrus.Errorf("error on callback: %e - %s", err, data)
+		zap.S().Errorw("error on callback",
+			"error", err,
+			"data", data,
+		)
 		return
 	}
 
 	if len(userResp.Users) != 1 {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("bad response from twitch")
-		logrus.Errorf("error on callback: %e - %s", err, data)
+		zap.S().Errorw("error on callback",
+			"error", err,
+			"data", data,
+		)
 		return
 	}
 
@@ -169,7 +190,9 @@ func (h *HttpServer) AuthCallbackHandler(ctx *fasthttp.RequestCtx) {
 	if err := h.gCtx.Inst().Redis.Set(context.Background(), redis.Key("twitch-chat:login:"+user.ID), strconv.Itoa(int(time.Now().Unix()))+"+"+tokenData); err != nil {
 		ctx.SetStatusCode(500)
 		ctx.SetBodyString("failed to update redis")
-		logrus.Errorf("error on callback: %e", err)
+		zap.S().Errorw("error on callback",
+			"error", err,
+		)
 		return
 	}
 

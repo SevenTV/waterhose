@@ -14,7 +14,7 @@ import (
 	"github.com/seventv/twitch-edge/src/configure"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/modes"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 var (
@@ -35,14 +35,18 @@ func main() {
 	config := configure.New()
 
 	if !config.IsMaster() && !config.IsSlave() {
-		logrus.Fatal("invalid startup mode specified: ", config.Mode)
+		zap.S().Fatalw("invalid startup mode specified: ",
+			"mode", config.Mode,
+		)
 	}
 
 	exitStatus, err := panicwrap.BasicWrap(func(s string) {
-		logrus.Error(s)
+		zap.S().Error("panic: ", s)
 	})
 	if err != nil {
-		logrus.Error("failed to setup panic handler: ", err)
+		zap.S().Errorw("failed to setup panic handler: ",
+			"error", err,
+		)
 		os.Exit(2)
 	}
 
@@ -52,16 +56,16 @@ func main() {
 
 	if !config.NoHeader {
 		if config.IsMaster() {
-			logrus.Info("7TV Twitch Edge Master")
+			zap.S().Info("7TV Twitch Edge Master")
 		} else if config.IsSlave() {
-			logrus.Info("7TV Twitch Edge Slave")
+			zap.S().Info("7TV Twitch Edge Slave")
 		}
-		logrus.Infof("Version: %s", Version)
-		logrus.Infof("build.Time: %s", Time)
-		logrus.Infof("build.User: %s", User)
+		zap.S().Infof("Version: %s", Version)
+		zap.S().Infof("build.Time: %s", Time)
+		zap.S().Infof("build.User: %s", User)
 	}
 
-	logrus.Debug("MaxProcs: ", runtime.GOMAXPROCS(0))
+	zap.S().Debug("MaxProcs: ", runtime.GOMAXPROCS(0))
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -80,10 +84,10 @@ func main() {
 			case <-time.After(time.Minute):
 			case <-sig:
 			}
-			logrus.Fatal("force shutdown")
+			zap.S().Fatal("force shutdown")
 		}()
 
-		logrus.Info("shutting down")
+		zap.S().Info("shutting down")
 
 		if appDone != nil {
 			<-appDone
@@ -94,10 +98,10 @@ func main() {
 
 	appDone = modes.New(gCtx)
 
-	logrus.Info("running")
+	zap.S().Info("running")
 
 	<-done
 
-	logrus.Info("shutdown")
+	zap.S().Info("shutdown")
 	os.Exit(0)
 }

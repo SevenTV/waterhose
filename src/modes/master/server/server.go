@@ -13,7 +13,7 @@ import (
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/structures"
 	"github.com/seventv/twitch-edge/src/svc/events"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -78,13 +78,17 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 			auth, err := s.gCtx.Inst().Twitch.GetOAuth(tCtx, accountID)
 			tCancel()
 			if err != nil {
-				logrus.Error("failed to get twitch login oauth: ", err)
+				zap.S().Errorw("failed to get twitch login oauth",
+					"error", err,
+				)
 				return ErrNoLoginData
 			}
 
 			user, err := s.gCtx.Inst().Twitch.GetUser(accountID)
 			if err != nil {
-				logrus.Error("failed to get twitch user: ", err)
+				zap.S().Errorw("failed to get twitch user",
+					"error", err,
+				)
 				return ErrNoLoginData
 			}
 
@@ -133,7 +137,6 @@ func (s *Server) PublishEdgeChannelEvent(ctx context.Context, req *pb.PublishEdg
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
 		// TODO handle this
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
-		logrus.Debug("unknown channel: ", req.Channel)
 		// we need to issue a rejoin on this channel
 		if err := s.gCtx.Inst().AutoScaler.AllocateChannels([]*pb.Channel{
 			req.Channel,

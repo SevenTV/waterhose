@@ -5,7 +5,7 @@ import (
 
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/instance"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,18 +29,24 @@ func New(gCtx global.Context) instance.K8S {
 	if gCtx.Config().Master.K8S.InCluster {
 		config, err = restclient.InClusterConfig()
 		if err != nil {
-			logrus.Fatal("failed to get k8s config: ", err)
+			zap.S().Fatalw("failed to get k8s config",
+				"error", err,
+			)
 		}
 	} else {
 		config, err = clientcmd.BuildConfigFromFlags("", gCtx.Config().Master.K8S.ConfigPath)
 		if err != nil {
-			logrus.Fatal("failed to get k8s config: ", err)
+			zap.S().Fatalw("failed to get k8s config",
+				"error", err,
+			)
 		}
 	}
 
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logrus.Fatal("failed to connect to k8s api: ", err)
+		zap.S().Fatal("failed to connect to k8s api",
+			"error", err,
+		)
 	}
 
 	statefulSetClient := client.AppsV1().StatefulSets(gCtx.Config().Master.K8S.Namespace)

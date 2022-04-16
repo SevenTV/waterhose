@@ -13,8 +13,8 @@ import (
 	"github.com/seventv/twitch-edge/src/instance"
 	"github.com/seventv/twitch-edge/src/structures"
 	"github.com/seventv/twitch-edge/src/svc/mongo"
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.uber.org/zap"
 )
 
 type autoScaler struct {
@@ -44,8 +44,6 @@ func New(gCtx global.Context) instance.AutoScaler {
 			a.mtx.Lock()
 			defer a.mtx.Unlock()
 
-			logrus.Info("fetching: ", len(channels))
-
 			ret, errs := make([]string, len(channels)), make([]error, len(channels))
 
 			mp := map[string]*pb.Channel{}
@@ -63,7 +61,6 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 			users, _ := a.gCtx.Inst().Twitch.GetUsers(filteredIDs)
 			userIdx := 0
-			logrus.Debug("twitch users fetched")
 
 			allocations := map[int][]structures.Channel{}
 			newChannels := []mongo.WriteModel{}
@@ -133,24 +130,38 @@ func New(gCtx global.Context) instance.AutoScaler {
 				}
 			}
 
-			ctx, cancel := context.WithTimeout(gCtx, time.Second*30)
-			_, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).BulkWrite(ctx, newChannels)
-			cancel()
-			if err != nil {
-				// TODO
-				logrus.Fatal(err)
+			attempts := 0
+			for {
+				if attempts != 0 {
+					time.Sleep(time.Millisecond * 500)
+					if attempts > 10 {
+						zap.S().Fatal("failed to update mongo")
+					}
+				}
+				ctx, cancel := context.WithTimeout(gCtx, time.Second*30)
+				_, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).BulkWrite(ctx, newChannels)
+				cancel()
+				if err != nil {
+					zap.S().Errorw("Update mongo failed",
+						"error", err,
+					)
+					attempts++
+					continue
+				}
+				break
 			}
 
-			ctx, cancel = context.WithTimeout(gCtx, time.Second*15)
+			ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
 			a.rescaleUnsafe(ctx, int32(len(a.edges)))
 			cancel()
 
 			for idx, channels := range allocations {
-				logrus.Infof("allocated %d channels to node %d", len(channels), idx)
+				zap.S().Infow("allocated channels to node",
+					"length", len(channels),
+					"node_idx", idx,
+				)
 				go a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 			}
-
-			logrus.Debug("finished loader")
 
 			return ret, errs
 		},
@@ -205,7 +216,10 @@ func (a *autoScaler) Load() error {
 
 	for idx, channelsMp := range a.edges {
 		_, channels := utils.DestructureMap(channelsMp)
-		logrus.Infof("loaded %d channels for node %d", len(channels), idx)
+		zap.S().Infow("loaded channels for node",
+			"length", len(channels),
+			"node_idx", idx,
+		)
 		go a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 	}
 	a.mtx.Unlock()
@@ -241,20 +255,21 @@ func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
 	if !a.gCtx.Config().Master.K8S.Enabled {
 		return
 	}
-	failed := 0
+	attempts := 0
 	for {
-		if failed > 1 {
+		if attempts > 1 {
 			time.Sleep(time.Millisecond * 800)
-			if failed > 20 {
-				logrus.Fatal("failed k8s too many times")
+			if attempts > 20 {
+				zap.S().Fatal("failed k8s too many times")
 			}
 		}
 		statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().Master.K8S.SatefulsetName)
 		if err != nil {
-			// unknown as to why this error occured.
-			// TODO fix this error
-			logrus.WithField("attempts", failed).Error("failed to get k8s api: ", err)
-			failed++
+			zap.S().Errorw("failed to get k8s api",
+				"error", err,
+				"attempts", attempts,
+			)
+			attempts++
 			continue
 		}
 
@@ -263,8 +278,11 @@ func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
 			statefulSet.Spec.Replicas = utils.PointerOf(int32(size))
 			_, err := a.gCtx.Inst().K8S.UpdateStatefulSet(ctx, statefulSet)
 			if err != nil {
-				logrus.WithField("attempts", failed).Error("failed to get k8s api: ", err)
-				failed++
+				zap.S().Errorw("failed to get k8s api",
+					"error", err,
+					"attempts", attempts,
+				)
+				attempts++
 				continue
 			}
 		}

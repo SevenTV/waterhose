@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -41,7 +40,6 @@ type Client struct {
 }
 
 func New(username string, oauth string) *Client {
-	logrus.Info("new client")
 	if username == "" || oauth == "" {
 		panic(fmt.Errorf("bad username or oauth: %s", username))
 	}

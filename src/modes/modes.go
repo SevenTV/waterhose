@@ -6,6 +6,7 @@ import (
 
 	cMongo "github.com/SevenTV/Common/mongo"
 	cRedis "github.com/SevenTV/Common/redis"
+	"go.uber.org/zap"
 
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/modes/master"
@@ -16,8 +17,6 @@ import (
 	"github.com/seventv/twitch-edge/src/svc/ratelimiter"
 	"github.com/seventv/twitch-edge/src/svc/redis"
 	"github.com/seventv/twitch-edge/src/svc/twitch"
-
-	"github.com/sirupsen/logrus"
 )
 
 func New(gCtx global.Context) <-chan struct{} {
@@ -46,7 +45,9 @@ func setupGlobal(gCtx global.Context) {
 		})
 		cancel()
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to connect to redis")
+			zap.S().Fatalw("failed to connect to redis",
+				"error", err,
+			)
 		}
 
 		gCtx.Inst().Redis = redis.WrapRedis(redisInst)
@@ -62,7 +63,9 @@ func setupGlobal(gCtx global.Context) {
 		})
 		cancel()
 		if err != nil {
-			logrus.WithError(err).Fatal("failed to connect to mongo")
+			zap.S().Fatal("failed to connect to mongo",
+				"error", err,
+			)
 		}
 
 		gCtx.Inst().Mongo = mongoInst
@@ -70,31 +73,33 @@ func setupGlobal(gCtx global.Context) {
 
 	if isMaster && gCtx.Config().Master.K8S.Enabled {
 		gCtx.Inst().K8S = k8s.New(gCtx)
-		logrus.Info("k8s, ok")
+		zap.S().Info("k8s, ok")
 	}
 
 	if isMaster || isSlave {
 		gCtx.Inst().EventEmitter = events.New()
-		logrus.Info("eventemitter, ok")
+		zap.S().Info("eventemitter, ok")
 	}
 
 	if isMaster {
 		gCtx.Inst().Twitch = twitch.New(gCtx)
-		logrus.Info("twitch, ok")
+		zap.S().Info("twitch, ok")
 	}
 
 	if isMaster {
 		gCtx.Inst().AutoScaler = autoscaler.New(gCtx)
 		if err := gCtx.Inst().AutoScaler.Load(); err != nil {
-			logrus.Fatal("failed to load autoscaler: ", err)
+			zap.S().Fatalw("failed to load autoscaler: ",
+				"error", err,
+			)
 		}
 
-		logrus.Info("autoscaler, ok")
+		zap.S().Info("autoscaler, ok")
 	}
 
 	if isMaster {
 		gCtx.Inst().RateLimit = ratelimiter.New()
 		go gCtx.Inst().RateLimit.Start()
-		logrus.Info("ratelimiter, ok")
+		zap.S().Info("ratelimiter, ok")
 	}
 }

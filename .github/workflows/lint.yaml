@@ -58,9 +58,6 @@ jobs:
       - name: compile protobuf
         run: make proto
 
-      - name: compile loaders
-        run: make loader
-
       - uses: actionsx/prettier@v2
         with:
           args: --check .
