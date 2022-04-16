@@ -56,6 +56,8 @@ github.com/SevenTV/Common v0.0.0-20220416034809-aa9a01891624 h1:tpQCDUqGEOoL6xEg
 github.com/SevenTV/Common v0.0.0-20220416034809-aa9a01891624/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
 github.com/SevenTV/Common v0.0.0-20220416042357-2c0480f1866e h1:FlSy81kdemhqf3eQ8f0NDIZV5SCee2o8AS+7qBYyvIs=
 github.com/SevenTV/Common v0.0.0-20220416042357-2c0480f1866e/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
+github.com/SevenTV/Common v0.0.0-20220416140418-a808880c5686 h1:Fk71gGNYsTZNK5z2kMn3QesHcDaBfB8WV3RBK+cqmzw=
+github.com/SevenTV/Common v0.0.0-20220416140418-a808880c5686/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
 github.com/andybalholm/brotli v1.0.2 h1:JKnhI/XQ75uFBTiuzXpzFrUriDPiZjlOSzh6wXogP0E=
 github.com/andybalholm/brotli v1.0.2/go.mod h1:loMXtMfwqflxFJPmdbJO0a3KNoPuLBgiu3qAvBg8x/Y=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=

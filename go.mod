@@ -3,7 +3,7 @@ module github.com/seventv/twitch-edge
 go 1.18
 
 require (
-	github.com/SevenTV/Common v0.0.0-20220416042357-2c0480f1866e
+	github.com/SevenTV/Common v0.0.0-20220416140418-a808880c5686
 	github.com/bugsnag/panicwrap v1.3.4
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/json-iterator/go v1.1.12

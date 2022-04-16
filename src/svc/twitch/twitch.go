@@ -34,9 +34,6 @@ func New(gCtx global.Context) instance.Twitch {
 		gCtx: gCtx,
 		userLoader: loaders.NewTwitchUserLoader(loaders.TwitchUserLoaderConfig{
 			Fetch: func(keys []string) ([]helix.User, []error) {
-				mtx.Lock()
-				defer mtx.Unlock()
-
 				users := make([]helix.User, len(keys))
 				errs := make([]error, len(keys))
 

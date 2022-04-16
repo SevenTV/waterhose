@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/SevenTV/Common/sync_map"
 	"github.com/SevenTV/Common/utils"
 	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-edge/src/global"
@@ -44,9 +45,10 @@ type Connection struct {
 
 	manager *Manager
 
-	mtx      sync.Mutex
-	channels map[string]*Channel
-	idx      int
+	channels sync_map.Map[string, *Channel]
+	length   *int64
+
+	idx      uint32
 	username string
 
 	client *irc.Client
@@ -63,7 +65,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 		manager:  manager,
 		username: options.Username,
 		client:   irc.New(options.Username, options.OAuth),
-		channels: map[string]*Channel{},
+		length:   utils.PointerOf(int64(0)),
 	}
 	conn.client.SetOnConnect(conn.onConnect)
 	conn.client.SetOnReconnect(conn.onReconnect)
@@ -79,8 +81,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 				return
 			}
 
-			conn.mtx.Lock()
-			for _, v := range conn.channels {
+			conn.channels.Range(func(key string, v *Channel) bool {
 				switch v.State {
 				case ChannelStateJoined, ChannelStateSuspended:
 					if v.LastEvent.Before(time.Now().Add(-time.Hour)) {
@@ -96,8 +97,8 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 						}
 					}
 				}
-			}
-			conn.mtx.Unlock()
+				return true
+			})
 		}
 	}()
 
@@ -130,10 +131,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 }
 
 func (c *Connection) ConnLength() int {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	return len(c.channels)
+	return int(atomic.LoadInt64(c.length))
 }
 
 func (c *Connection) getNewConnection(ctx context.Context) error {
@@ -155,11 +153,10 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 
 func (c *Connection) onConnect() {
 	logrus.WithField("idx", c.idx).Info("twitch client connected")
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	for _, channel := range c.channels {
-		go c.JoinChannel(channel.Raw)
-	}
+	c.channels.Range(func(key string, value *Channel) bool {
+		c.JoinChannel(value.Raw)
+		return true
+	})
 }
 
 func (c *Connection) onReconnect() {
@@ -168,11 +165,7 @@ func (c *Connection) onReconnect() {
 }
 
 func (c *Connection) onMessage(m irc.Message) {
-	msgCh := strings.TrimLeft(m.Channel, "#")
-
-	c.mtx.Lock()
-	channel, ok := c.channels[msgCh]
-	c.mtx.Unlock()
+	channel, ok := c.channels.Load(strings.TrimLeft(m.Channel, "#"))
 	if !ok {
 		return
 	}
@@ -225,19 +218,18 @@ func (c *Connection) onMessage(m irc.Message) {
 }
 
 func (c *Connection) JoinChannel(channel *pb.Channel) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	ch, ok := c.channels[channel.GetLogin()]
+	ch, ok := c.channels.LoadOrStore(channel.GetLogin(), &Channel{
+		Raw:       channel,
+		State:     ChannelStateWaitingLimits,
+		LastEvent: time.Now(),
+	})
 	if ok {
 		ch.Raw = channel
 		if ch.State == ChannelStateJoined {
 			return
 		}
 	} else {
-		ch = (&Channel{
-			Raw: channel,
-		}).Update(ChannelStateWaitingLimits)
-		c.channels[channel.GetLogin()] = ch
+		atomic.AddInt64(c.length, 1)
 	}
 
 	go func() {
@@ -257,31 +249,8 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 }
 
 func (c *Connection) PartChannel(channel string) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
+	atomic.AddInt64(c.length, -1)
+	c.channels.Delete(channel)
 
-	logrus.WithField("idx", c.idx).Debug("issued part for channel: ", channel)
-
-	delete(c.channels, channel)
 	c.client.Write("PART #" + channel)
-}
-
-type Connections []*Connection
-
-func (c *Connections) New(conn *Connection) {
-	i := len(*c)
-	*c = append(*c, conn)
-	conn.idx = i
-}
-
-func (c Connections) First() *Connection {
-	return c[0]
-}
-
-func (c Connections) Last() *Connection {
-	if len(c) == 0 {
-		return nil
-	}
-
-	return c[len(c)-1]
 }

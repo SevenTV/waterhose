@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SevenTV/Common/sync_map"
 	"github.com/SevenTV/Common/utils"
 	"github.com/seventv/twitch-edge/loaders"
 	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
@@ -19,14 +20,14 @@ import (
 
 type autoScaler struct {
 	gCtx global.Context
-	mtx  sync.Mutex
 
 	// a map of edge ids to a list of chnanels in said edge
 	edges   []map[string]structures.Channel
 	edgeIdx int
+	mtx     sync.Mutex
 
 	// a map of channel id to edge id
-	channels map[string]structures.Channel
+	channels sync_map.Map[string, structures.Channel]
 
 	ready     chan struct{}
 	readyOnce sync.Once
@@ -36,10 +37,8 @@ type autoScaler struct {
 
 func New(gCtx global.Context) instance.AutoScaler {
 	a := &autoScaler{
-		gCtx:     gCtx,
-		edges:    []map[string]structures.Channel{},
-		channels: map[string]structures.Channel{},
-		ready:    make(chan struct{}),
+		gCtx:  gCtx,
+		ready: make(chan struct{}),
 	}
 	a.loader = loaders.NewAllocateChannel(loaders.AllocateChannelConfig{
 		Fetch: func(channels []*pb.Channel) ([]string, []error) {
@@ -82,7 +81,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 					preset := false
 					presetEdgeIdx := a.edgeIdx
-					if channel, ok := a.channels[usr.ID]; ok {
+					if channel, ok := a.channels.Load(usr.ID); ok {
 						presetEdgeIdx = int(channel.EdgeNode)
 						preset = true
 					}
@@ -98,7 +97,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 						}
 
 						channels[usr.ID] = channel
-						a.channels[usr.ID] = channel
+						a.channels.Store(usr.ID, channel)
 						allocations[presetEdgeIdx] = append(allocations[presetEdgeIdx], channel)
 
 						operation := mongo.NewUpdateOneModel()
@@ -176,9 +175,8 @@ func (a *autoScaler) Load() error {
 	}
 
 	a.mtx.Lock()
-	defer a.mtx.Unlock()
 	for _, v := range channels {
-		a.channels[v.TwitchID] = v
+		a.channels.Store(v.TwitchID, v)
 		if len(a.edges) < int(v.EdgeNode)+1 {
 			edges := make([]map[string]structures.Channel, int(v.EdgeNode)+1)
 			copy(edges, a.edges)
@@ -193,17 +191,18 @@ func (a *autoScaler) Load() error {
 		a.edges[v.EdgeNode][v.TwitchID] = v
 	}
 
+	a.rescaleUnsafe(ctx, int32(len(a.edges)))
+
 	a.readyOnce.Do(func() {
 		close(a.ready)
 	})
-
-	a.rescaleUnsafe(ctx, int32(len(a.edges)))
 
 	for idx, channelsMp := range a.edges {
 		_, channels := utils.DestructureMap(channelsMp)
 		logrus.Infof("loaded %d channels for node %d", len(channels), idx)
 		a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 	}
+	a.mtx.Unlock()
 
 	return nil
 }
@@ -215,7 +214,6 @@ func (a *autoScaler) AllocateChannels(channels []*pb.Channel) error {
 
 func (a *autoScaler) GetChannelsForEdge(idx int) []structures.Channel {
 	a.mtx.Lock()
-	defer a.mtx.Unlock()
 	if len(a.edges) <= idx {
 		return nil
 	}
@@ -226,6 +224,8 @@ func (a *autoScaler) GetChannelsForEdge(idx int) []structures.Channel {
 		channels[i] = v
 		i++
 	}
+
+	a.mtx.Unlock()
 
 	return channels
 }
