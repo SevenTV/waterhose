@@ -17,8 +17,8 @@ type RateLimit struct {
 }
 
 var VerifiedJoinChannel = RateLimit{
-	Count: 2000,
-	Time:  time.Second * 10,
+	Count: 1800,
+	Time:  time.Second * 12,
 }
 
 type pqJoinChannel struct {

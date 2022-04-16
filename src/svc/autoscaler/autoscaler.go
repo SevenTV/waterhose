@@ -15,7 +15,6 @@ import (
 	"github.com/seventv/twitch-edge/src/svc/mongo"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
-	"k8s.io/client-go/util/retry"
 )
 
 type autoScaler struct {
@@ -42,10 +41,9 @@ func New(gCtx global.Context) instance.AutoScaler {
 	}
 	a.loader = dataloader.New(dataloader.Config[*pb.Channel, string]{
 		Fetch: func(channels []*pb.Channel) ([]string, []error) {
-			ctx := context.TODO()
-
 			a.mtx.Lock()
 			defer a.mtx.Unlock()
+
 			logrus.Info("fetching: ", len(channels))
 
 			ret, errs := make([]string, len(channels)), make([]error, len(channels))
@@ -65,6 +63,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 			users, _ := a.gCtx.Inst().Twitch.GetUsers(filteredIDs)
 			userIdx := 0
+			logrus.Debug("twitch users fetched")
 
 			allocations := map[int][]structures.Channel{}
 			newChannels := []mongo.WriteModel{}
@@ -134,23 +133,29 @@ func New(gCtx global.Context) instance.AutoScaler {
 				}
 			}
 
+			ctx, cancel := context.WithTimeout(gCtx, time.Second*30)
 			_, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).BulkWrite(ctx, newChannels)
+			cancel()
 			if err != nil {
 				// TODO
 				logrus.Fatal(err)
 			}
 
+			ctx, cancel = context.WithTimeout(gCtx, time.Second*15)
 			a.rescaleUnsafe(ctx, int32(len(a.edges)))
+			cancel()
 
 			for idx, channels := range allocations {
 				logrus.Infof("allocated %d channels to node %d", len(channels), idx)
-				a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
+				go a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 			}
+
+			logrus.Debug("finished loader")
 
 			return ret, errs
 		},
-		MaxBatch: 100,
-		Wait:     time.Second,
+		MaxBatch: 2000,
+		Wait:     time.Millisecond * 500,
 	})
 
 	return a
@@ -158,9 +163,8 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 func (a *autoScaler) Load() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
 	cur, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).Find(ctx, bson.M{})
+	cancel()
 	if err != nil {
 		return err
 	}
@@ -191,7 +195,9 @@ func (a *autoScaler) Load() error {
 		a.edges[v.EdgeNode][v.TwitchID] = v
 	}
 
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	a.rescaleUnsafe(ctx, int32(len(a.edges)))
+	cancel()
 
 	a.readyOnce.Do(func() {
 		close(a.ready)
@@ -200,7 +206,7 @@ func (a *autoScaler) Load() error {
 	for idx, channelsMp := range a.edges {
 		_, channels := utils.DestructureMap(channelsMp)
 		logrus.Infof("loaded %d channels for node %d", len(channels), idx)
-		a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
+		go a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 	}
 	a.mtx.Unlock()
 
@@ -215,6 +221,7 @@ func (a *autoScaler) AllocateChannels(channels []*pb.Channel) error {
 func (a *autoScaler) GetChannelsForEdge(idx int) []structures.Channel {
 	a.mtx.Lock()
 	if len(a.edges) <= idx {
+		a.mtx.Unlock()
 		return nil
 	}
 
@@ -234,25 +241,35 @@ func (a *autoScaler) rescaleUnsafe(ctx context.Context, size int32) {
 	if !a.gCtx.Config().Master.K8S.Enabled {
 		return
 	}
-
-	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	failed := 0
+	for {
+		if failed > 1 {
+			time.Sleep(time.Millisecond * 800)
+			if failed > 20 {
+				logrus.Fatal("failed k8s too many times")
+			}
+		}
 		statefulSet, err := a.gCtx.Inst().K8S.GetStatefulSet(ctx, a.gCtx.Config().Master.K8S.SatefulsetName)
 		if err != nil {
 			// unknown as to why this error occured.
 			// TODO fix this error
-			logrus.Fatal(err)
+			logrus.WithField("attempts", failed).Error("failed to get k8s api: ", err)
+			failed++
+			continue
 		}
 
 		if statefulSet.Spec.Replicas == nil || *statefulSet.Spec.Replicas != size {
 			// rescale
 			statefulSet.Spec.Replicas = utils.PointerOf(int32(size))
-			_, err := a.gCtx.Inst().K8S.UpdateStatefulSet(context.TODO(), statefulSet)
-			return err
+			_, err := a.gCtx.Inst().K8S.UpdateStatefulSet(ctx, statefulSet)
+			if err != nil {
+				logrus.WithField("attempts", failed).Error("failed to get k8s api: ", err)
+				failed++
+				continue
+			}
 		}
 
-		return nil
-	}); err != nil {
-		// TODO
-		logrus.Fatal(err)
+		return
 	}
+
 }

@@ -40,6 +40,9 @@ func New(gCtx global.Context) instance.Twitch {
 					ClientID:     gCtx.Config().Master.Twitch.ClientID,
 					ClientSecret: gCtx.Config().Master.Twitch.ClientSecret,
 					RedirectURI:  gCtx.Config().Master.Twitch.RedirectURI,
+					HTTPClient: &http.Client{
+						Timeout: time.Second * 10,
+					},
 					RateLimitFunc: func(r *helix.Response) error {
 						epoch, err := strconv.Atoi(r.Header.Get("Ratelimit-Limit"))
 						if err != nil {
@@ -62,9 +65,11 @@ func New(gCtx global.Context) instance.Twitch {
 
 					return users, errs
 				}
-
-				tkn, err := gCtx.Inst().Redis.Get(context.TODO(), redis.Key("twitch-app-token"))
+				ctx, cancel := context.WithTimeout(gCtx, time.Second*5)
+				tkn, err := gCtx.Inst().Redis.Get(ctx, redis.Key("twitch-app-token"))
+				cancel()
 				if err != nil {
+					logrus.Debug("fetching twitch app token")
 					rTkn, err := client.RequestAppAccessToken(nil)
 					if err != nil {
 						logrus.Error("twitch error: ", err)
@@ -76,7 +81,9 @@ func New(gCtx global.Context) instance.Twitch {
 					}
 
 					tkn = rTkn.Data.AccessToken
-					err = gCtx.Inst().Redis.Set(context.TODO(), redis.Key("twitch-app-token"), tkn)
+					ctx, cancel := context.WithTimeout(gCtx, time.Second*5)
+					err = gCtx.Inst().Redis.Set(ctx, redis.Key("twitch-app-token"), tkn)
+					cancel()
 					if err != nil {
 						logrus.Error("twitch error: ", err)
 						for i := 0; i < len(errs); i++ {
@@ -89,6 +96,7 @@ func New(gCtx global.Context) instance.Twitch {
 
 				client.SetAppAccessToken(tkn)
 
+				logrus.Debug("fetching twitch users")
 				resp, err := client.GetUsers(&helix.UsersParams{
 					IDs: keys,
 				})
@@ -114,6 +122,7 @@ func New(gCtx global.Context) instance.Twitch {
 					}
 				}
 
+				logrus.Debug("fetched twitch users")
 				return users, errs
 
 			},

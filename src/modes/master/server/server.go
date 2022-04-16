@@ -38,7 +38,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 
 	accountID := s.gCtx.Config().Master.Irc.BotAccountID
 
-	loginEventCh := make(chan struct{}, 5)
+	loginEventCh := make(chan struct{}, 50)
 	defer close(loginEventCh)
 	loginEventCh <- struct{}{}
 
@@ -50,7 +50,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 		}
 	}()
 
-	joinEventCh := make(chan []structures.Channel, 5)
+	joinEventCh := make(chan []structures.Channel, 50)
 	defer close(joinEventCh)
 
 	first := false
@@ -66,7 +66,9 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 			return ctx.Err()
 		case <-loginEventCh:
 			if !first {
-				joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(edgeIdx)
+				go func() {
+					joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(edgeIdx)
+				}()
 				first = false
 			}
 			loginTick.Reset(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
@@ -131,6 +133,7 @@ func (s *Server) PublishEdgeChannelEvent(ctx context.Context, req *pb.PublishEdg
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
 		// TODO handle this
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
+		logrus.Debug("unknown channel: ", req.Channel)
 		// we need to issue a rejoin on this channel
 		if err := s.gCtx.Inst().AutoScaler.AllocateChannels([]*pb.Channel{
 			req.Channel,
