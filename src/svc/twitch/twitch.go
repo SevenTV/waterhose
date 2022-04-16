@@ -29,7 +29,6 @@ type twitchController struct {
 }
 
 func New(gCtx global.Context) instance.Twitch {
-	mtx := sync.Mutex{}
 	return &twitchController{
 		gCtx: gCtx,
 		userLoader: loaders.NewTwitchUserLoader(loaders.TwitchUserLoaderConfig{
