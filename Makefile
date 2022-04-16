@@ -1,4 +1,4 @@
-all: build_deps proto loader linux
+all: build_deps proto linux
 
 BUILDER := "unknown"
 VERSION := "unknown"
@@ -33,17 +33,12 @@ deps: build_deps
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 	$(MAKE) -C protobuf deps
-	$(MAKE) -C loaders deps
 
 build_deps:
 	$(MAKE) -C protobuf build_deps
-	$(MAKE) -C loaders build_deps
 
 proto:
 	$(MAKE) -C protobuf compile
-
-loader:
-	$(MAKE) -C loaders compile
 
 test:
 	go test -count=1 -cover ./...

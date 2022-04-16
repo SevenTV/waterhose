@@ -175,14 +175,17 @@ func (c *Connection) onMessage(m irc.Message) {
 	case irc.MessageTypeJoin:
 		if m.User == c.username {
 			channel.Update(ChannelStateJoined)
+			logrus.WithField("idx", c.idx).Warn("joined chat: ", channel)
 		}
 	case irc.MessageTypePart:
 		if m.User == c.username {
+			logrus.WithField("idx", c.idx).Warn("parted chat: ", channel)
 			channel.Update(ChannelStateParted)
-			go c.JoinChannel(channel.Raw)
+			c.JoinChannel(channel.Raw)
 		}
 	case irc.MessageTypeNotice:
 		if m.Tags.ChannelSuspended() {
+			logrus.WithField("idx", c.idx).Warn("channel suspended: ", channel)
 			channel.Update(ChannelStateSuspended)
 			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
 				Channel: channel.Raw,
@@ -234,17 +237,14 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 
 	go func() {
 		if c.idx != 0 {
-			logrus.WithField("idx", c.idx).Debug("waiting limits: ", channel)
 			if err := c.manager.rl(c.gCtx, channel); err != nil {
 				logrus.Error("failed to get rates on channel: ", err)
 				return
 			}
-			logrus.WithField("idx", c.idx).Debug("joining channel: ", channel)
 		}
 
 		ch.Update(ChannelStateJoinRequested)
 		c.client.Write("JOIN #" + channel.GetLogin())
-		logrus.WithField("idx", c.idx).Debug("issued join for channel: ", channel)
 	}()
 }
 

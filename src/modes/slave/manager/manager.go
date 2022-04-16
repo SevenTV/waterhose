@@ -110,7 +110,7 @@ func (m *Manager) init() {
 
 func (m *Manager) newConn(options ConnectionOptions) *Connection {
 	conn := newConnection(m.gCtx, m, options)
-	idx := atomic.AddUint32(m.ircIdx, 1)
+	idx := atomic.AddUint32(m.ircIdx, 1) - 1
 	conn.idx = idx
 	m.ircConns.Store(idx, conn)
 	return conn

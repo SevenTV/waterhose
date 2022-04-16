@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SevenTV/Common/dataloader"
 	"github.com/SevenTV/Common/sync_map"
 	"github.com/SevenTV/Common/utils"
-	"github.com/seventv/twitch-edge/loaders"
 	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/instance"
@@ -32,7 +32,7 @@ type autoScaler struct {
 	ready     chan struct{}
 	readyOnce sync.Once
 
-	loader *loaders.AllocateChannel
+	loader *dataloader.DataLoader[*pb.Channel, string]
 }
 
 func New(gCtx global.Context) instance.AutoScaler {
@@ -40,7 +40,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 		gCtx:  gCtx,
 		ready: make(chan struct{}),
 	}
-	a.loader = loaders.NewAllocateChannel(loaders.AllocateChannelConfig{
+	a.loader = dataloader.New(dataloader.Config[*pb.Channel, string]{
 		Fetch: func(channels []*pb.Channel) ([]string, []error) {
 			ctx := context.TODO()
 

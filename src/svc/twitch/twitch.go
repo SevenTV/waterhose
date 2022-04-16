@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SevenTV/Common/dataloader"
 	"github.com/SevenTV/Common/redis"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nicklaw5/helix"
-	"github.com/seventv/twitch-edge/loaders"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/instance"
 	"github.com/sirupsen/logrus"
@@ -25,13 +25,13 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 type twitchController struct {
 	mtx        sync.Mutex
 	gCtx       global.Context
-	userLoader *loaders.TwitchUserLoader
+	userLoader *dataloader.DataLoader[string, helix.User]
 }
 
 func New(gCtx global.Context) instance.Twitch {
 	return &twitchController{
 		gCtx: gCtx,
-		userLoader: loaders.NewTwitchUserLoader(loaders.TwitchUserLoaderConfig{
+		userLoader: dataloader.New(dataloader.Config[string, helix.User]{
 			Fetch: func(keys []string) ([]helix.User, []error) {
 				users := make([]helix.User, len(keys))
 				errs := make([]error, len(keys))
