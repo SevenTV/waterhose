@@ -156,10 +156,10 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 func (c *Connection) onConnect() {
 	logrus.WithField("idx", c.idx).Info("twitch client connected")
 	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	for _, channel := range c.channels {
 		go c.JoinChannel(channel.Raw)
 	}
-	c.mtx.Unlock()
 }
 
 func (c *Connection) onReconnect() {
