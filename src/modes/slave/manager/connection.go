@@ -17,6 +17,7 @@ import (
 type ChannelState string
 
 const (
+	ChannelStateWaitingLimits ChannelState = "WAITING_LIMITS"
 	ChannelStateJoinRequested ChannelState = "JOIN_REQUESTED"
 	ChannelStateJoined        ChannelState = "JOINED"
 	ChannelStateParted        ChannelState = "PARTED"
@@ -128,6 +129,13 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 	return conn
 }
 
+func (c *Connection) ConnLength() int {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	return len(c.channels)
+}
+
 func (c *Connection) getNewConnection(ctx context.Context) error {
 	for {
 		if ctx.Err() != nil {
@@ -162,13 +170,12 @@ func (c *Connection) onReconnect() {
 func (c *Connection) onMessage(m irc.Message) {
 	msgCh := strings.TrimLeft(m.Channel, "#")
 
-	if _, ok := c.channels[msgCh]; !ok {
+	c.mtx.Lock()
+	channel, ok := c.channels[msgCh]
+	c.mtx.Unlock()
+	if !ok {
 		return
 	}
-
-	c.mtx.Lock()
-	channel := c.channels[msgCh]
-	c.mtx.Unlock()
 
 	channel.Update()
 	switch m.Type {
@@ -218,24 +225,35 @@ func (c *Connection) onMessage(m irc.Message) {
 }
 
 func (c *Connection) JoinChannel(channel *pb.Channel) {
-	if c.idx != 0 {
-		logrus.WithField("idx", c.idx).Debug("waiting limits: ", channel)
-		if err := c.manager.rl(c.gCtx, channel); err != nil {
-			logrus.Error("failed to get rates on channel: ", err)
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	ch, ok := c.channels[channel.GetLogin()]
+	if ok {
+		ch.Raw = channel
+		if ch.State == ChannelStateJoined {
 			return
 		}
-		logrus.WithField("idx", c.idx).Debug("joining channel: ", channel)
+	} else {
+		ch = (&Channel{
+			Raw: channel,
+		}).Update(ChannelStateWaitingLimits)
+		c.channels[channel.GetLogin()] = ch
 	}
 
-	c.mtx.Lock()
-	c.channels[channel.GetLogin()] = (&Channel{
-		Raw: channel,
-	}).Update()
-	c.mtx.Unlock()
+	go func() {
+		if c.idx != 0 {
+			logrus.WithField("idx", c.idx).Debug("waiting limits: ", channel)
+			if err := c.manager.rl(c.gCtx, channel); err != nil {
+				logrus.Error("failed to get rates on channel: ", err)
+				return
+			}
+			logrus.WithField("idx", c.idx).Debug("joining channel: ", channel)
+		}
 
-	c.channels[channel.GetLogin()].Update(ChannelStateJoinRequested)
-	c.client.Write("JOIN #" + channel.GetLogin())
-	logrus.WithField("idx", c.idx).Debug("issued join for channel: ", channel)
+		ch.Update(ChannelStateJoinRequested)
+		c.client.Write("JOIN #" + channel.GetLogin())
+		logrus.WithField("idx", c.idx).Debug("issued join for channel: ", channel)
+	}()
 }
 
 func (c *Connection) PartChannel(channel string) {

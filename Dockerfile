@@ -10,13 +10,17 @@ ARG VERSION
 ENV TWITCH_CHAT_CONTROLLER_BUILDER=${BUILDER}
 ENV TWITCH_CHAT_CONTROLLER_VERSION=${VERSION}
 
-RUN apt-get update && apt-get install make git gcc protobuf-compiler -y && \
+RUN apt-get update && apt-get install make git gcc protobuf-compiler ca-certificates -y && \
     make
 
 FROM ubuntu:21.04
 
 WORKDIR /app
 
-COPY --from=builder /tmp/twitch-chat-controller/bin/twitch-chat-controller .
+RUN apt-get update && apt-get install -y ca-certificates
 
-CMD ["/app/twitch-chat-controller"]
+COPY --from=builder /usr/sbin/update-ca-certificates /usr/sbin/update-ca-certificates
+COPY --from=builder /tmp/twitch-chat-controller/bin/twitch-edge .
+
+
+CMD ["/app/twitch-edge"]

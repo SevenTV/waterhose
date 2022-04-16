@@ -47,6 +47,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 			a.mtx.Lock()
 			defer a.mtx.Unlock()
+			logrus.Info("fetching: ", len(channels))
 
 			ret, errs := make([]string, len(channels)), make([]error, len(channels))
 
@@ -143,12 +144,14 @@ func New(gCtx global.Context) instance.AutoScaler {
 			a.rescaleUnsafe(ctx, int32(len(a.edges)))
 
 			for idx, channels := range allocations {
+				logrus.Infof("allocated %d channels to node %d", len(channels), idx)
 				a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 			}
 
 			return ret, errs
 		},
-		Wait: time.Second,
+		MaxBatch: 100,
+		Wait:     time.Second,
 	})
 
 	return a
@@ -198,6 +201,7 @@ func (a *autoScaler) Load() error {
 
 	for idx, channelsMp := range a.edges {
 		_, channels := utils.DestructureMap(channelsMp)
+		logrus.Infof("loaded %d channels for node %d", len(channels), idx)
 		a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
 	}
 

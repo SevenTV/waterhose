@@ -37,11 +37,12 @@ func setupGlobal(gCtx global.Context) {
 	if isMaster || isSlave {
 		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)
 		redisInst, err := cRedis.Setup(ctx, cRedis.SetupOptions{
-			Username:  gCtx.Config().Redis.Username,
-			Password:  gCtx.Config().Redis.Password,
-			Database:  gCtx.Config().Redis.Database,
-			Addresses: gCtx.Config().Redis.Addresses,
-			Sentinel:  gCtx.Config().Redis.Sentinel,
+			MasterName: gCtx.Config().Redis.MasterName,
+			Username:   gCtx.Config().Redis.Username,
+			Password:   gCtx.Config().Redis.Password,
+			Database:   gCtx.Config().Redis.Database,
+			Addresses:  gCtx.Config().Redis.Addresses,
+			Sentinel:   gCtx.Config().Redis.Sentinel,
 		})
 		cancel()
 		if err != nil {

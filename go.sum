@@ -50,6 +50,10 @@ github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbt
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
 github.com/SevenTV/Common v0.0.0-20220413171303-352a0f103e90 h1:kwffbuZ27wqdQBYPH2nt9EKAhcWBmYZJ7qvftzGCKrI=
 github.com/SevenTV/Common v0.0.0-20220413171303-352a0f103e90/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
+github.com/SevenTV/Common v0.0.0-20220416034419-69a207709a2d h1:jLtDlRGo0megUZnaTTgPUAYa84erjnvByWVX8e7QwoI=
+github.com/SevenTV/Common v0.0.0-20220416034419-69a207709a2d/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
+github.com/SevenTV/Common v0.0.0-20220416034809-aa9a01891624 h1:tpQCDUqGEOoL6xEgNyGt8Sn/pUi3GWvsCPb5xN0wKmM=
+github.com/SevenTV/Common v0.0.0-20220416034809-aa9a01891624/go.mod h1:f129wggsQnCg3L26kMYx1WSVY5l7WujL/A07H3ZB9uw=
 github.com/andybalholm/brotli v1.0.2 h1:JKnhI/XQ75uFBTiuzXpzFrUriDPiZjlOSzh6wXogP0E=
 github.com/andybalholm/brotli v1.0.2/go.mod h1:loMXtMfwqflxFJPmdbJO0a3KNoPuLBgiu3qAvBg8x/Y=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=

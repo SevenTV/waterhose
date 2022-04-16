@@ -1,4 +1,4 @@
-all: proto loader linux
+all: build_deps proto loader linux
 
 BUILDER := "unknown"
 VERSION := "unknown"
@@ -26,14 +26,15 @@ lint:
 
 	$(MAKE) -C protobuf lint
 
-deps:
+deps: build_deps
 	go mod download
 	yarn
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-	$(MAKE) -C protobuf deps
-	$(MAKE) -C loaders deps
+build_deps:
+	$(MAKE) -C protobuf build_deps
+	$(MAKE) -C loaders build_deps
 
 proto:
 	$(MAKE) -C protobuf compile

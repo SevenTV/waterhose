@@ -17,6 +17,7 @@ import (
 	"github.com/seventv/twitch-edge/loaders"
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/instance"
+	"github.com/sirupsen/logrus"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -28,10 +29,14 @@ type twitchController struct {
 }
 
 func New(gCtx global.Context) instance.Twitch {
+	mtx := sync.Mutex{}
 	return &twitchController{
 		gCtx: gCtx,
 		userLoader: loaders.NewTwitchUserLoader(loaders.TwitchUserLoaderConfig{
 			Fetch: func(keys []string) ([]helix.User, []error) {
+				mtx.Lock()
+				defer mtx.Unlock()
+
 				users := make([]helix.User, len(keys))
 				errs := make([]error, len(keys))
 
@@ -39,8 +44,22 @@ func New(gCtx global.Context) instance.Twitch {
 					ClientID:     gCtx.Config().Master.Twitch.ClientID,
 					ClientSecret: gCtx.Config().Master.Twitch.ClientSecret,
 					RedirectURI:  gCtx.Config().Master.Twitch.RedirectURI,
+					RateLimitFunc: func(r *helix.Response) error {
+						epoch, err := strconv.Atoi(r.Header.Get("Ratelimit-Limit"))
+						if err != nil {
+							return err
+						}
+						diff := time.Until(time.Unix(int64(epoch), 0))
+						logrus.Info("hit twitch ratelimit: ", diff)
+						if diff > 0 {
+							time.Sleep(diff)
+						}
+
+						return nil
+					},
 				})
 				if err != nil {
+					logrus.Error("twitch error: ", err)
 					for i := 0; i < len(errs); i++ {
 						errs[i] = err
 					}
@@ -52,6 +71,7 @@ func New(gCtx global.Context) instance.Twitch {
 				if err != nil {
 					rTkn, err := client.RequestAppAccessToken(nil)
 					if err != nil {
+						logrus.Error("twitch error: ", err)
 						for i := 0; i < len(errs); i++ {
 							errs[i] = err
 						}
@@ -62,6 +82,7 @@ func New(gCtx global.Context) instance.Twitch {
 					tkn = rTkn.Data.AccessToken
 					err = gCtx.Inst().Redis.Set(context.TODO(), redis.Key("twitch-app-token"), tkn)
 					if err != nil {
+						logrus.Error("twitch error: ", err)
 						for i := 0; i < len(errs); i++ {
 							errs[i] = err
 						}
@@ -76,6 +97,7 @@ func New(gCtx global.Context) instance.Twitch {
 					IDs: keys,
 				})
 				if err != nil {
+					logrus.Error("twitch error: ", err)
 					for i := 0; i < len(errs); i++ {
 						errs[i] = err
 					}

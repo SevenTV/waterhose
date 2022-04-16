@@ -1,6 +1,8 @@
-all: deps build
+all: build_deps build
 
-deps:
+deps: build_deps
+
+build_deps:
 	go install github.com/seventv/dataloaden@cc5ac4900
 
 compile:

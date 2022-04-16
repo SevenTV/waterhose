@@ -37,6 +37,7 @@ func New(gCtx global.Context, rl RateLimiter, ep EventPublish) *Manager {
 		channels: map[string]int{},
 		ircConns: []*Connection{},
 		rl:       rl,
+		ep:       ep,
 	}
 
 	manager.init()
@@ -63,12 +64,12 @@ func (m *Manager) JoinChat(channel *pb.Channel) {
 		return
 	}
 
-	if len(m.ircConns) == 1 || len(m.ircConns.Last().channels) >= m.gCtx.Config().Slave.IRC.ChannelLimitPerConn {
+	if len(m.ircConns) == 1 || m.ircConns.Last().ConnLength() >= m.gCtx.Config().Slave.IRC.ChannelLimitPerConn {
 		m.newConn(m.connectionOptions)
 	}
 
 	conn := m.ircConns.Last()
-	go conn.JoinChannel(channel)
+	conn.JoinChannel(channel)
 	m.channels[channel.GetId()] = conn.idx
 }
 

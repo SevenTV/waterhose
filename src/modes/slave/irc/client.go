@@ -72,7 +72,9 @@ func (c *Client) Connect(ctx context.Context) error {
 }
 
 func (c *Client) Shutdown() {
-	_ = c.conn.Close()
+	if c.conn != nil {
+		_ = c.conn.Close()
+	}
 }
 
 func (c *Client) SetOAuth(oauth string) {

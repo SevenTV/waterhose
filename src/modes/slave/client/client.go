@@ -100,15 +100,18 @@ func (c *Client) initGrpc(ctx context.Context) error {
 		switch payload := msg.Payload.(type) {
 		case *pb.RegisterEdgeResponse_JoinChannelPayload_:
 			channels := payload.JoinChannelPayload.GetChannels()
+			logrus.Infof("recieved %d channels to join", len(channels))
 			for _, v := range channels {
 				c.manager.JoinChat(v)
 			}
 		case *pb.RegisterEdgeResponse_PartChannelPayload_:
 			channels := payload.PartChannelPayload.GetChannels()
+			logrus.Infof("recieved %d channels to part", len(channels))
 			for _, v := range channels {
 				c.manager.PartChat(v)
 			}
 		case *pb.RegisterEdgeResponse_LoginPayload_:
+			logrus.Infof("recieved login info")
 			c.manager.SetLoginCreds(manager.ConnectionOptions{
 				Username: payload.LoginPayload.GetChannel().GetLogin(),
 				OAuth:    "oauth:" + payload.LoginPayload.GetOauth(),
