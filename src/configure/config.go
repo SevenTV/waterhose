@@ -101,6 +101,17 @@ type Config struct {
 		NodeName string `mapstructure:"node_name" json:"node_name"`
 	} `mapstructure:"k8s" json:"k8s"`
 
+	Health struct {
+		Bind    string `mapstructure:"bind" json:"bind"`
+		Enabled bool   `mapstructure:"enabled" json:"enabled"`
+	} `mapstructure:"health" json:"health"`
+
+	Monitoring struct {
+		Bind    string     `mapstructure:"bind" json:"bind"`
+		Enabled bool       `mapstructure:"enabled" json:"enabled"`
+		Labels  []KeyValue `mapstructure:"labels" json:"labels"`
+	} `mapstructure:"monitoring" json:"monitoring"`
+
 	Master struct {
 		API struct {
 			Bind     string `mapstructure:"bind" json:"bind"`
@@ -158,4 +169,9 @@ func (c Config) IsMaster() bool {
 
 func (c Config) IsSlave() bool {
 	return c.Mode == ModeSlave
+}
+
+type KeyValue struct {
+	Key   string `mapstructure:"key" json:"key"`
+	Value string `mapstructure:"value" json:"value"`
 }

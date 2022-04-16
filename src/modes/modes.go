@@ -11,6 +11,7 @@ import (
 	"github.com/seventv/twitch-edge/src/global"
 	"github.com/seventv/twitch-edge/src/modes/master"
 	"github.com/seventv/twitch-edge/src/modes/slave"
+	"github.com/seventv/twitch-edge/src/monitoring"
 	"github.com/seventv/twitch-edge/src/svc/autoscaler"
 	"github.com/seventv/twitch-edge/src/svc/events"
 	"github.com/seventv/twitch-edge/src/svc/k8s"
@@ -32,6 +33,10 @@ func New(gCtx global.Context) <-chan struct{} {
 func setupGlobal(gCtx global.Context) {
 	isMaster := gCtx.Config().IsMaster()
 	isSlave := gCtx.Config().IsSlave()
+
+	if isMaster || isSlave {
+		gCtx.Inst().Monitoring = monitoring.NewPrometheus(gCtx)
+	}
 
 	if isMaster || isSlave {
 		ctx, cancel := context.WithTimeout(gCtx, time.Second*15)

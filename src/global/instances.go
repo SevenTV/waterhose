@@ -14,4 +14,5 @@ type Instances struct {
 	Mongo        mongo.Instance
 	AutoScaler   instance.AutoScaler
 	RateLimit    instance.RateLimiter
+	Monitoring   instance.Monitoring
 }

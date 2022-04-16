@@ -6,8 +6,10 @@ import (
 
 	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
 	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/twitch-edge/src/health"
 	"github.com/seventv/twitch-edge/src/modes/master/http"
 	"github.com/seventv/twitch-edge/src/modes/master/server"
+	"github.com/seventv/twitch-edge/src/monitoring"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -22,6 +24,22 @@ func New(gCtx global.Context) <-chan struct{} {
 		httpSrv *http.HttpServer
 		grpcSrv *grpc.Server
 	)
+
+	if gCtx.Config().Health.Enabled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-health.New(gCtx)
+		}()
+	}
+
+	if gCtx.Config().Monitoring.Enabled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-monitoring.New(gCtx)
+		}()
+	}
 
 	go func() {
 		defer wg.Done()
