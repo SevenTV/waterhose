@@ -4,7 +4,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/seventv/twitch-edge/src/global"
-	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"go.uber.org/zap"
@@ -17,7 +16,6 @@ func New(gCtx global.Context) <-chan struct{} {
 	server := fasthttp.Server{
 		Handler: fasthttpadaptor.NewFastHTTPHandler(promhttp.HandlerFor(r, promhttp.HandlerOpts{
 			Registry:          r,
-			ErrorLog:          logrus.New(),
 			EnableOpenMetrics: true,
 		})),
 		GetOnly:          true,

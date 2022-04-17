@@ -59,7 +59,6 @@ func (m *Manager) SetLoginCreds(options ConnectionOptions) {
 }
 
 func (m *Manager) JoinChat(channel *pb.Channel) {
-
 	if idx, ok := m.channels.Load(channel.GetId()); ok {
 		conn, _ := m.ircConns.Load(idx)
 		conn.JoinChannel(channel)

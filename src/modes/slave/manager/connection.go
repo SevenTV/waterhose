@@ -72,7 +72,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 	conn.client.SetOnMessage(conn.onMessage)
 
 	go func() {
-		tick := time.NewTicker(time.Minute*5 + utils.JitterTime(time.Minute, time.Minute*5))
+		tick := time.NewTicker(time.Minute + utils.JitterTime(time.Minute, time.Minute*5))
 		defer tick.Stop()
 		for {
 			select {
@@ -85,10 +85,22 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 				switch v.State {
 				case ChannelStateJoined, ChannelStateSuspended:
 					if v.LastEvent.Before(time.Now().Add(-time.Hour)) {
+						zap.S().Debugw("joined channel dead",
+							"channel_id", v.Raw.Id,
+							"channel_login", v.Raw.Login,
+							"last_event", v.LastEvent,
+							"conn_id", conn.idx,
+						)
 						go conn.JoinChannel(v.Raw)
 					}
 				case ChannelStateJoinRequested:
-					if v.LastEvent.Before(time.Now().Add(-time.Minute * 5)) {
+					if v.LastEvent.Before(time.Now().Add(-time.Minute * 2)) {
+						zap.S().Debugw("join request timed out",
+							"channel_id", v.Raw.Id,
+							"channel_login", v.Raw.Login,
+							"last_event", v.LastEvent,
+							"conn_id", conn.idx,
+						)
 						if err := conn.manager.ep(gCtx, &pb.PublishEdgeChannelEventRequest{
 							Channel: v.Raw,
 							Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL,
@@ -97,6 +109,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 								"error", err,
 							)
 						}
+						conn.channels.Delete(key)
 					}
 				}
 				return true
@@ -112,8 +125,8 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 				}
 
 				zap.S().Errorw("redis",
-					"id", conn.idx,
 					"error", err,
+					"conn_id", conn.idx,
 				)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
@@ -125,8 +138,8 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 				}
 
 				zap.S().Errorw("twitch client disconnected",
-					"id", conn.idx,
 					"erorr", err,
+					"conn_id", conn.idx,
 				)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
@@ -158,7 +171,7 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 }
 
 func (c *Connection) onConnect() {
-	zap.S().Infow("twitch client connected",
+	zap.S().Debugw("twitch client connected",
 		"idx", c.idx,
 	)
 	c.channels.Range(func(key string, value *Channel) bool {
@@ -168,7 +181,7 @@ func (c *Connection) onConnect() {
 }
 
 func (c *Connection) onReconnect() {
-	zap.S().Infow("twitch client reconnected",
+	zap.S().Debugw("twitch client reconnected",
 		"idx", c.idx,
 	)
 	time.Sleep(utils.JitterTime(time.Second*5, time.Second*10))

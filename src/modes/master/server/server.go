@@ -133,10 +133,22 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 func (s *Server) PublishEdgeChannelEvent(ctx context.Context, req *pb.PublishEdgeChannelEventRequest) (*pb.PublishEdgeChannelEventResponse, error) {
 	switch req.Type {
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_BANNED:
+		zap.S().Debugw("channel banned bot",
+			"channel_id", req.Channel.Id,
+			"channel_login", req.Channel.Login,
+		)
 		// TODO handle this
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
+		zap.S().Debugw("suspended channel",
+			"channel_id", req.Channel.Id,
+			"channel_login", req.Channel.Login,
+		)
 		// TODO handle this
 	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
+		zap.S().Debugw("unknown channel",
+			"channel_id", req.Channel.Id,
+			"channel_login", req.Channel.Login,
+		)
 		// we need to issue a rejoin on this channel
 		if err := s.gCtx.Inst().AutoScaler.AllocateChannels([]*pb.Channel{
 			req.Channel,
