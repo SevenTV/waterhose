@@ -3,7 +3,7 @@ package instance
 import (
 	"context"
 
-	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	pb "github.com/seventv/waterhose/protobuf/waterhose/v1"
 )
 
 type RateLimiter interface {

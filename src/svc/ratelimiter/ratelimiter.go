@@ -7,7 +7,7 @@ import (
 
 	"github.com/SevenTV/Common/datastructures/priority_queue"
 	"github.com/SevenTV/Common/utils"
-	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	pb "github.com/seventv/waterhose/protobuf/waterhose/v1"
 	"github.com/seventv/waterhose/src/instance"
 )
 

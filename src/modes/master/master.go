@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync"
 
-	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	pb "github.com/seventv/waterhose/protobuf/waterhose/v1"
 	"github.com/seventv/waterhose/src/global"
 	"github.com/seventv/waterhose/src/health"
 	"github.com/seventv/waterhose/src/modes/master/http"
