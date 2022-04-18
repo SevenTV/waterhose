@@ -19,7 +19,7 @@ type Client struct {
 
 	manager *manager.Manager
 
-	grpc pb.TwitchEdgeServiceClient
+	grpc pb.WaterHoseServiceClient
 }
 
 func New(gCtx global.Context) <-chan struct{} {
@@ -29,12 +29,12 @@ func New(gCtx global.Context) <-chan struct{} {
 	cl = &Client{
 		gCtx: gCtx,
 		manager: manager.New(gCtx, func(ctx context.Context, channel *pb.Channel) error {
-			_, err := cl.grpc.JoinChannelEdge(ctx, &pb.JoinChannelEdgeRequest{
+			_, err := cl.grpc.SlaveJoinLimit(ctx, &pb.SlaveJoinLimitRequest{
 				Channel: channel,
 			})
 			return err
-		}, func(ctx context.Context, evt *pb.PublishEdgeChannelEventRequest) error {
-			_, err := cl.grpc.PublishEdgeChannelEvent(ctx, evt)
+		}, func(ctx context.Context, evt *pb.PublishSlaveChannelEventRequest) error {
+			_, err := cl.grpc.PublishSlaveChannelEvent(ctx, evt)
 			return err
 		}),
 	}
@@ -80,9 +80,9 @@ func (c *Client) initGrpc(ctx context.Context) error {
 	}
 	defer conn.Close()
 
-	c.grpc = pb.NewTwitchEdgeServiceClient(conn)
-	events, err := c.grpc.RegisterEdge(ctx, &pb.RegisterEdgeRequest{
-		NodeName: c.gCtx.Config().K8S.NodeName,
+	c.grpc = pb.NewWaterHoseServiceClient(conn)
+	events, err := c.grpc.RegisterSlave(ctx, &pb.RegisterSlaveRequest{
+		SlaveName: c.gCtx.Config().K8S.NodeName,
 	})
 	if err != nil {
 		_ = conn.Close()
@@ -98,7 +98,7 @@ func (c *Client) initGrpc(ctx context.Context) error {
 		}
 
 		switch payload := msg.Payload.(type) {
-		case *pb.RegisterEdgeResponse_JoinChannelPayload_:
+		case *pb.RegisterSlaveResponse_JoinChannelPayload_:
 			channels := payload.JoinChannelPayload.GetChannels()
 			zap.S().Infow("recieved channels to join",
 				"length", len(channels),
@@ -106,15 +106,15 @@ func (c *Client) initGrpc(ctx context.Context) error {
 			for _, v := range channels {
 				c.manager.JoinChat(v)
 			}
-		case *pb.RegisterEdgeResponse_PartChannelPayload_:
+		case *pb.RegisterSlaveResponse_PartChannelPayload_:
 			channels := payload.PartChannelPayload.GetChannels()
-			zap.S().Infof("recieved %d channels to part",
+			zap.S().Infow("recieved channels to part",
 				"length", len(channels),
 			)
 			for _, v := range channels {
 				c.manager.PartChat(v)
 			}
-		case *pb.RegisterEdgeResponse_LoginPayload_:
+		case *pb.RegisterSlaveResponse_LoginPayload_:
 			zap.S().Info("recieved login info")
 			c.manager.SetLoginCreds(manager.ConnectionOptions{
 				Username: payload.LoginPayload.GetChannel().GetLogin(),

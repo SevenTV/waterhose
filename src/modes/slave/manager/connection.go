@@ -103,9 +103,9 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 							"last_event", v.LastEvent,
 							"conn_id", conn.idx,
 						)
-						if err := conn.manager.ep(gCtx, &pb.PublishEdgeChannelEventRequest{
+						if err := conn.manager.ep(gCtx, &pb.PublishSlaveChannelEventRequest{
 							Channel: v.Raw,
-							Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL,
+							Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL,
 						}); err != nil {
 							zap.S().Errorw("failed to publish event to master",
 								"error", err,
@@ -227,9 +227,9 @@ func (c *Connection) onMessage(m irc.Message) {
 	case irc.MessageTypeNotice:
 		if m.Tags.ChannelSuspended() {
 			channel.Update(ChannelStateSuspended)
-			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
+			if err := c.manager.ep(c.gCtx, &pb.PublishSlaveChannelEventRequest{
 				Channel: channel.Raw,
-				Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL,
+				Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL,
 			}); err != nil {
 				zap.S().Errorw("failed to publish event to master",
 					"error", err,
@@ -239,9 +239,9 @@ func (c *Connection) onMessage(m irc.Message) {
 		}
 
 		if m.Tags.Banned() {
-			if err := c.manager.ep(c.gCtx, &pb.PublishEdgeChannelEventRequest{
+			if err := c.manager.ep(c.gCtx, &pb.PublishSlaveChannelEventRequest{
 				Channel: channel.Raw,
-				Type:    pb.PublishEdgeChannelEventRequest_EVENT_TYPE_BANNED,
+				Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_BANNED,
 			}); err != nil {
 				zap.S().Errorw("failed to publish event to master",
 					"error", err,

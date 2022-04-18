@@ -17,16 +17,16 @@ func New() *EventEmitter {
 	}
 }
 
-func (ev *EventEmitter) PublishEdgeChannelUpdate(idx int, channels []structures.Channel) {
-	ev.PublishRaw(EdgeChannelUpdateFormat(idx), channels)
+func (ev *EventEmitter) PublishSlaveChannelUpdate(idx int, channels []structures.Channel) {
+	ev.PublishRaw(SlaveChannelUpdateFormat(idx), channels)
 }
 
 func (ev *EventEmitter) PublishTwitchChatLogin(accountID string) {
 	ev.PublishRaw(TwitchChatLoginFormat(accountID), struct{}{})
 }
 
-func EdgeChannelUpdateFormat(idx int) string {
-	return fmt.Sprintf("edge-channel-update:%d", idx)
+func SlaveChannelUpdateFormat(idx int) string {
+	return fmt.Sprintf("slave-channel-update:%d", idx)
 }
 
 func TwitchChatLoginFormat(accountID string) string {

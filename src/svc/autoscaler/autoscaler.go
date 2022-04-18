@@ -164,7 +164,7 @@ func New(gCtx global.Context) instance.AutoScaler {
 					"length", len(channels),
 					"node_idx", idx,
 				)
-				go a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
+				go a.gCtx.Inst().EventEmitter.PublishSlaveChannelUpdate(idx, channels)
 			}
 
 			return ret, errs
@@ -224,7 +224,7 @@ func (a *autoScaler) Load() error {
 			"length", len(channels),
 			"node_idx", idx,
 		)
-		go a.gCtx.Inst().EventEmitter.PublishEdgeChannelUpdate(idx, channels)
+		go a.gCtx.Inst().EventEmitter.PublishSlaveChannelUpdate(idx, channels)
 	}
 	a.mtx.Unlock()
 
@@ -236,7 +236,7 @@ func (a *autoScaler) AllocateChannels(channels []*pb.Channel) error {
 	return errs[0]
 }
 
-func (a *autoScaler) GetChannelsForEdge(idx int) []structures.Channel {
+func (a *autoScaler) GetChannelsForSlave(idx int) []structures.Channel {
 	a.mtx.Lock()
 	if len(a.edges) <= idx {
 		a.mtx.Unlock()

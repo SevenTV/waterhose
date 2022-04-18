@@ -8,29 +8,29 @@ import (
 )
 
 type mon struct {
-	mode             configure.Mode
-	twitchEdgeMaster instance.MonitoringTwitchEdgeMaster
-	twitchEdgeSlave  instance.MonitoringTwitchEdgeSlave
+	mode            configure.Mode
+	waterhoseMaster instance.MonitoringWaterHoseMaster
+	waterhoseSlave  instance.MonitoringWaterHoseSlave
 }
 
-func (m *mon) TwitchEdgeMaster() instance.MonitoringTwitchEdgeMaster {
-	return m.twitchEdgeMaster
+func (m *mon) WaterHoseMaster() instance.MonitoringWaterHoseMaster {
+	return m.waterhoseMaster
 }
 
-func (m *mon) TwitchEdgeSlave() instance.MonitoringTwitchEdgeSlave {
-	return m.twitchEdgeSlave
+func (m *mon) WaterHoseSlave() instance.MonitoringWaterHoseSlave {
+	return m.waterhoseSlave
 }
 
 func (m *mon) Register(r prometheus.Registerer) {
 	if m.mode == configure.ModeMaster {
 		r.MustRegister(
-			m.twitchEdgeMaster.TotalChannels,
+			m.waterhoseMaster.TotalChannels,
 		)
 	} else if m.mode == configure.ModeSlave {
 		r.MustRegister(
-			m.twitchEdgeSlave.TotalChannelsBannedIn,
-			m.twitchEdgeSlave.TotalChannelsSuspended,
-			m.twitchEdgeSlave.TotalChannelsConnectedTo,
+			m.waterhoseSlave.TotalChannelsBannedIn,
+			m.waterhoseSlave.TotalChannelsSuspended,
+			m.waterhoseSlave.TotalChannelsConnectedTo,
 		)
 	}
 }
@@ -48,14 +48,14 @@ func labelsFromKeyValue(kv []configure.KeyValue) prometheus.Labels {
 func NewPrometheus(gCtx global.Context) instance.Monitoring {
 	return &mon{
 		mode: gCtx.Config().Mode,
-		twitchEdgeMaster: instance.MonitoringTwitchEdgeMaster{
+		waterhoseMaster: instance.MonitoringWaterHoseMaster{
 			TotalChannels: prometheus.NewHistogram(prometheus.HistogramOpts{
 				Name:        "total_channels",
 				ConstLabels: labelsFromKeyValue(gCtx.Config().Monitoring.Labels),
 				Help:        "The total number of channels",
 			}),
 		},
-		twitchEdgeSlave: instance.MonitoringTwitchEdgeSlave{
+		waterhoseSlave: instance.MonitoringWaterHoseSlave{
 			TotalChannelsBannedIn: prometheus.NewHistogram(prometheus.HistogramOpts{
 				Name:        "total_channels_banned_in",
 				ConstLabels: labelsFromKeyValue(gCtx.Config().Monitoring.Labels),

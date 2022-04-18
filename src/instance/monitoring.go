@@ -4,15 +4,15 @@ import "github.com/prometheus/client_golang/prometheus"
 
 type Monitoring interface {
 	Register(prometheus.Registerer)
-	TwitchEdgeMaster() MonitoringTwitchEdgeMaster
-	TwitchEdgeSlave() MonitoringTwitchEdgeSlave
+	WaterHoseMaster() MonitoringWaterHoseMaster
+	WaterHoseSlave() MonitoringWaterHoseSlave
 }
 
-type MonitoringTwitchEdgeMaster struct {
+type MonitoringWaterHoseMaster struct {
 	TotalChannels prometheus.Histogram
 }
 
-type MonitoringTwitchEdgeSlave struct {
+type MonitoringWaterHoseSlave struct {
 	TotalChannelsBannedIn    prometheus.Histogram
 	TotalChannelsSuspended   prometheus.Histogram
 	TotalChannelsConnectedTo prometheus.Histogram

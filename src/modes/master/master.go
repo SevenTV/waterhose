@@ -52,7 +52,7 @@ func New(gCtx global.Context) <-chan struct{} {
 		}
 
 		grpcSrv = grpc.NewServer()
-		pb.RegisterTwitchEdgeServiceServer(grpcSrv, server.New(gCtx))
+		pb.RegisterWaterHoseServiceServer(grpcSrv, server.New(gCtx))
 
 		if err := grpcSrv.Serve(ln); err != nil {
 			zap.S().Fatalw("failed to listen to addresss: ",

@@ -18,20 +18,20 @@ import (
 
 type Server struct {
 	gCtx global.Context
-	pb.UnimplementedTwitchEdgeServiceServer
+	pb.UnimplementedWaterHoseServiceServer
 }
 
-func New(gCtx global.Context) pb.TwitchEdgeServiceServer {
+func New(gCtx global.Context) pb.WaterHoseServiceServer {
 	return &Server{
 		gCtx: gCtx,
 	}
 }
 
-func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeService_RegisterEdgeServer) error {
+func (s *Server) RegisterSlave(req *pb.RegisterSlaveRequest, srv pb.WaterHoseService_RegisterSlaveServer) error {
 	ctx, cancel := context.WithCancel(srv.Context())
 	defer cancel()
 
-	edgeIdx, err := strconv.Atoi(strings.TrimPrefix(req.NodeName, s.gCtx.Config().Master.K8S.SatefulsetName+"-"))
+	slaveIdx, err := strconv.Atoi(strings.TrimPrefix(req.SlaveName, s.gCtx.Config().Master.K8S.SatefulsetName+"-"))
 	if err != nil {
 		return ErrBadNodeName
 	}
@@ -56,8 +56,8 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 	first := false
 
 	defer s.gCtx.Inst().EventEmitter.Listen(eventemitter.NewEventListener(map[string]reflect.Value{
-		events.TwitchChatLoginFormat(accountID): reflect.ValueOf(loginEventCh),
-		events.EdgeChannelUpdateFormat(edgeIdx): reflect.ValueOf(joinEventCh),
+		events.TwitchChatLoginFormat(accountID):   reflect.ValueOf(loginEventCh),
+		events.SlaveChannelUpdateFormat(slaveIdx): reflect.ValueOf(joinEventCh),
 	}))()
 
 	for {
@@ -67,7 +67,7 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 		case <-loginEventCh:
 			if !first {
 				go func() {
-					joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForEdge(edgeIdx)
+					joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForSlave(slaveIdx)
 				}()
 				first = false
 			}
@@ -92,10 +92,10 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 				return ErrNoLoginData
 			}
 
-			if err = srv.Send(&pb.RegisterEdgeResponse{
-				Type: pb.RegisterEdgeResponse_EVENT_TYPE_LOGIN,
-				Payload: &pb.RegisterEdgeResponse_LoginPayload_{
-					LoginPayload: &pb.RegisterEdgeResponse_LoginPayload{
+			if err = srv.Send(&pb.RegisterSlaveResponse{
+				Type: pb.RegisterSlaveResponse_EVENT_TYPE_LOGIN,
+				Payload: &pb.RegisterSlaveResponse_LoginPayload_{
+					LoginPayload: &pb.RegisterSlaveResponse_LoginPayload{
 						Channel: &pb.Channel{
 							Id:    accountID,
 							Login: user.Login,
@@ -116,10 +116,10 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 				}
 			}
 
-			if err = srv.Send(&pb.RegisterEdgeResponse{
-				Type: pb.RegisterEdgeResponse_EVENT_TYPE_JOIN_CHANNEL,
-				Payload: &pb.RegisterEdgeResponse_JoinChannelPayload_{
-					JoinChannelPayload: &pb.RegisterEdgeResponse_JoinChannelPayload{
+			if err = srv.Send(&pb.RegisterSlaveResponse{
+				Type: pb.RegisterSlaveResponse_EVENT_TYPE_JOIN_CHANNEL,
+				Payload: &pb.RegisterSlaveResponse_JoinChannelPayload_{
+					JoinChannelPayload: &pb.RegisterSlaveResponse_JoinChannelPayload{
 						Channels: pbChannels,
 					},
 				},
@@ -130,21 +130,21 @@ func (s *Server) RegisterEdge(req *pb.RegisterEdgeRequest, srv pb.TwitchEdgeServ
 	}
 }
 
-func (s *Server) PublishEdgeChannelEvent(ctx context.Context, req *pb.PublishEdgeChannelEventRequest) (*pb.PublishEdgeChannelEventResponse, error) {
+func (s *Server) PublishSlaveChannelEvent(ctx context.Context, req *pb.PublishSlaveChannelEventRequest) (*pb.PublishSlaveChannelEventResponse, error) {
 	switch req.Type {
-	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_BANNED:
+	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_BANNED:
 		zap.S().Debugw("channel banned bot",
 			"channel_id", req.Channel.Id,
 			"channel_login", req.Channel.Login,
 		)
 		// TODO handle this
-	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
+	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
 		zap.S().Debugw("suspended channel",
 			"channel_id", req.Channel.Id,
 			"channel_login", req.Channel.Login,
 		)
 		// TODO handle this
-	case pb.PublishEdgeChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
+	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
 		zap.S().Debugw("unknown channel",
 			"channel_id", req.Channel.Id,
 			"channel_login", req.Channel.Login,
@@ -156,7 +156,7 @@ func (s *Server) PublishEdgeChannelEvent(ctx context.Context, req *pb.PublishEdg
 			return nil, err
 		}
 	}
-	return &pb.PublishEdgeChannelEventResponse{
+	return &pb.PublishSlaveChannelEventResponse{
 		Success: true,
 	}, nil
 }
@@ -171,13 +171,13 @@ func (s *Server) JoinChannel(ctx context.Context, req *pb.JoinChannelRequest) (*
 	}, nil
 }
 
-func (s *Server) JoinChannelEdge(ctx context.Context, req *pb.JoinChannelEdgeRequest) (*pb.JoinChannelEdgeResponse, error) {
+func (s *Server) SlaveJoinLimit(ctx context.Context, req *pb.SlaveJoinLimitRequest) (*pb.SlaveJoinLimitResponse, error) {
 	err := s.gCtx.Inst().RateLimit.RequestJoin(ctx, req.Channel)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.JoinChannelEdgeResponse{
+	return &pb.SlaveJoinLimitResponse{
 		Allowed: true,
 	}, nil
 }

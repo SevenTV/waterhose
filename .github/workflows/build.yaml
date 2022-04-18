@@ -1,4 +1,4 @@
-name: Build Twitch-Chat-Controller
+name: Build WaterHose
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build Twitch-Chat-Controller
+    name: Build WaterHose
     runs-on: self-hosted
 
     steps:
@@ -36,7 +36,7 @@ jobs:
             harbor.disembark.dev/7tv/waterhose:latest
 
   deploy:
-    name: Deploy Twitch-Chat-Controller (Production)
+    name: Deploy WaterHose (Production)
     runs-on: ubuntu-latest
     needs: # Run this after build
       - build

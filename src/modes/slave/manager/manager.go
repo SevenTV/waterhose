@@ -20,7 +20,7 @@ The 0th connection in each manager will be a connection that does not have auth,
 
 type RateLimiter func(context.Context, *pb.Channel) error
 
-type EventPublish func(context.Context, *pb.PublishEdgeChannelEventRequest) error
+type EventPublish func(context.Context, *pb.PublishSlaveChannelEventRequest) error
 
 type Manager struct {
 	gCtx global.Context

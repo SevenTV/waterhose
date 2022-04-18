@@ -7,6 +7,6 @@ import (
 
 type AutoScaler interface {
 	AllocateChannels(channels []*pb.Channel) error
-	GetChannelsForEdge(idx int) []structures.Channel
+	GetChannelsForSlave(idx int) []structures.Channel
 	Load() error
 }

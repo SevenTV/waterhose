@@ -75,7 +75,7 @@ func (r *redisInst) RateLimitJoin(ctx context.Context, count int) (int, time.Dur
 	return count - v, ttl, nil
 }
 
-const RedisPrefix = "twitch-chat:"
+const RedisPrefix = "waterhose:"
 
 func WrapRedis(redis redis.Instance) instance.Redis {
 	return &redisInst{Instance: redis}
