@@ -280,12 +280,14 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 		atomic.AddInt64(c.length, 1)
 	}
 
+	ch.Update()
 	if !c.client.IsConnected() {
 		return
 	}
 
 	go func() {
 		if c.idx != 0 {
+			ch.Update(ChannelStateWaitingLimits)
 			if err := c.manager.rl(c.gCtx, channel); err != nil {
 				zap.S().Errorw("failed to get rates on channel",
 					"error", err,
