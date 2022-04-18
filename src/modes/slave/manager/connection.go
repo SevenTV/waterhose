@@ -85,7 +85,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 			conn.channels.Range(func(key string, v *Channel) bool {
 				switch v.State {
 				case ChannelStateJoined, ChannelStateSuspended:
-					if v.LastEvent.Before(time.Now().Add(-time.Hour)) {
+					if v.LastEvent.Before(time.Now().Add(-time.Hour * 24)) {
 						zap.S().Debugw("joined channel dead",
 							"channel_id", v.Raw.Id,
 							"channel_login", v.Raw.Login,
