@@ -35,9 +35,7 @@ This document aims to define what happens during edge cases on the Twitch IRC
 
 ## Channel gets banned
 
-    Untested
-
-    What likely happens is you get a PART message and then on reconnect you are trying to join a suspended channel.
+    When you get banned nothing happens, its similar to a name change.
 
 ## Bot gets banned
 
