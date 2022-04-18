@@ -2,7 +2,6 @@ package irc
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -117,9 +116,9 @@ func (c *Client) init(ctx context.Context) error {
 
 	c.err.Reset()
 
-	go c.read(conn)
-	go c.write(conn)
-	go c.pinger()
+	go c.read(conn, lCtx)
+	go c.write(conn, lCtx)
+	go c.pinger(conn, lCtx)
 
 	go func() {
 		select {
@@ -142,14 +141,9 @@ func (c *Client) init(ctx context.Context) error {
 	return err
 }
 
-func (c *Client) read(conn net.Conn) {
-	msgBuffer := bytes.NewBuffer(nil)
+func (c *Client) read(conn net.Conn, ctx context.Context) {
 	defer func() {
 		_ = c.conn.Close()
-		zap.S().Errorw("read to conn failed",
-			"error", c.err,
-			"data", msgBuffer.String(),
-		)
 	}()
 
 	// stores last 2048 bytes of messages
@@ -159,11 +153,6 @@ func (c *Client) read(conn net.Conn) {
 		if err != nil {
 			c.err.Error(fmt.Errorf("read failed: %e", err))
 			return
-		}
-
-		msgBuffer.WriteString(line + "\n")
-		if msgBuffer.Len() > 2048 {
-			msgBuffer.Truncate(msgBuffer.Len() - 2048)
 		}
 
 		msg, err := ParseMessage(line)
@@ -199,34 +188,47 @@ func (c *Client) read(conn net.Conn) {
 	}
 }
 
-func (c *Client) write(conn net.Conn) {
+func (c *Client) write(conn net.Conn, ctx context.Context) {
 	defer func() {
-		_ = c.conn.Close()
+		_ = conn.Close()
 	}()
 
-	for msg := range c.writeCh {
-		_, err := c.conn.Write([]byte(msg))
-		if err != nil {
-			c.err.Error(fmt.Errorf("write failed: %e", err))
+	for {
+		select {
+		case msg := <-c.writeCh:
+			_, err := conn.Write([]byte(msg))
+			if err != nil {
+				c.err.Error(fmt.Errorf("write failed: %e", err))
+				return
+			}
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (c *Client) pinger() {
+func (c *Client) pinger(conn net.Conn, ctx context.Context) {
 	defer func() {
-		c.err.Error(errReconnect)
-		_ = c.conn.Close()
+		_ = conn.Close()
 	}()
 
 	tick := time.NewTicker(time.Minute * 3)
-	for range tick.C {
-		if c.pingSent {
-			zap.S().Errorw("Ping didnt respond in time")
+	defer tick.Stop()
+	c.pingSent = false
+
+	for {
+		select {
+		case <-ctx.Done():
 			return
+		case <-tick.C:
+			if c.pingSent {
+				zap.S().Errorw("Ping didnt respond in time")
+				c.err.Error(errReconnect)
+				return
+			}
+			c.writeCh <- pingMessage
+			c.pingSent = true
 		}
-		c.writeCh <- pingMessage
-		c.pingSent = true
 	}
 }
 
