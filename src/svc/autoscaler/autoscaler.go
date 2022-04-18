@@ -65,6 +65,10 @@ func New(gCtx global.Context) instance.AutoScaler {
 			allocations := map[int][]structures.Channel{}
 			newChannels := []mongo.WriteModel{}
 
+			if len(users) == 0 {
+				return ret, errs
+			}
+
 		users:
 			for userIdx < len(users) {
 				if users[userIdx].ID == "" {

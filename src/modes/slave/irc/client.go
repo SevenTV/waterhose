@@ -2,14 +2,17 @@ package irc
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/SevenTV/Common/utils"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -26,26 +29,30 @@ type loginDetails struct {
 }
 
 type Client struct {
-	conn    net.Conn
-	err     *errorChan
-	writeCh chan string
+	conn            net.Conn
+	openConnLimiter func()
+	err             *errorChan
+	writeCh         chan string
 
 	login loginDetails
 
-	pingSent bool
+	pingSent  bool
+	connected bool
+	mtx       sync.Mutex
 
 	onMessage   func(Message)
 	onReconnect func()
 	onConnect   func()
 }
 
-func New(username string, oauth string) *Client {
+func New(username string, oauth string, openConnLimiter func()) *Client {
 	if username == "" || oauth == "" {
 		panic(fmt.Errorf("bad username or oauth: %s", username))
 	}
 	return &Client{
-		err:     &errorChan{},
-		writeCh: make(chan string, 100),
+		err:             &errorChan{},
+		writeCh:         make(chan string, 100),
+		openConnLimiter: openConnLimiter,
 		login: loginDetails{
 			username: username,
 			oauth:    oauth,
@@ -80,8 +87,12 @@ func (c *Client) SetOAuth(oauth string) {
 }
 
 func (c *Client) init(ctx context.Context) error {
+	utils.EmptyChannel(c.writeCh)
+
 	lCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	c.openConnLimiter()
 
 	conn, err := tls.Dial("tcp", "irc.chat.twitch.tv:6697", &tls.Config{})
 	if err != nil {
@@ -122,23 +133,37 @@ func (c *Client) init(ctx context.Context) error {
 		}
 	}()
 
-	return <-c.err.ch
+	err = <-c.err.ch
+
+	c.mtx.Lock()
+	c.connected = true
+	c.mtx.Unlock()
+
+	return err
 }
 
 func (c *Client) read(conn net.Conn) {
+	msgBuffer := bytes.NewBuffer(nil)
 	defer func() {
-		c.err.Error(errReconnect)
 		_ = c.conn.Close()
-		log.Println("read failed")
+		zap.S().Errorw("read to conn failed",
+			"error", c.err,
+			"data", msgBuffer.String(),
+		)
 	}()
 
+	// stores last 2048 bytes of messages
 	tp := textproto.NewReader(bufio.NewReader(conn))
-
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Println(err)
+			c.err.Error(fmt.Errorf("read failed: %e", err))
 			return
+		}
+
+		msgBuffer.WriteString(line + "\n")
+		if msgBuffer.Len() > 2048 {
+			msgBuffer.Truncate(msgBuffer.Len() - 2048)
 		}
 
 		msg, err := ParseMessage(line)
@@ -148,11 +173,17 @@ func (c *Client) read(conn net.Conn) {
 
 		switch msg.Type {
 		case MessageType376:
+			c.mtx.Lock()
+			c.connected = true
+			c.mtx.Unlock()
 			if c.onConnect != nil {
 				c.onConnect()
 			}
 		case MessageTypePing:
-			c.Write(fmt.Sprintf("PONG :%s\r\n", msg.Source))
+			if err := c.Write(fmt.Sprintf("PONG :%s\r\n", msg.Source)); err != nil {
+				c.err.Error(err)
+				return
+			}
 		case MessageTypePong:
 			if msg.Content == pingSource {
 				c.pingSent = false
@@ -162,6 +193,7 @@ func (c *Client) read(conn net.Conn) {
 			c.onMessage(msg)
 		}
 		if msg.Type == MessageTypeReconnect {
+			c.err.Error(errReconnect)
 			return
 		}
 	}
@@ -169,15 +201,13 @@ func (c *Client) read(conn net.Conn) {
 
 func (c *Client) write(conn net.Conn) {
 	defer func() {
-		c.err.Error(errReconnect)
 		_ = c.conn.Close()
-
-		log.Println("write failed")
 	}()
 
 	for msg := range c.writeCh {
 		_, err := c.conn.Write([]byte(msg))
 		if err != nil {
+			c.err.Error(fmt.Errorf("write failed: %e", err))
 			return
 		}
 	}
@@ -187,12 +217,12 @@ func (c *Client) pinger() {
 	defer func() {
 		c.err.Error(errReconnect)
 		_ = c.conn.Close()
-
-		log.Println("ping failed")
 	}()
+
 	tick := time.NewTicker(time.Minute * 3)
 	for range tick.C {
 		if c.pingSent {
+			zap.S().Errorw("Ping didnt respond in time")
 			return
 		}
 		c.writeCh <- pingMessage
@@ -212,11 +242,25 @@ func (c *Client) SetOnConnect(f func()) {
 	c.onConnect = f
 }
 
-func (c *Client) Write(msg string) {
+func (c *Client) IsConnected() bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	return c.connected
+}
+
+func (c *Client) Write(msg string) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	if !c.connected {
+		return fmt.Errorf("not connected")
+	}
 	if !strings.HasSuffix(msg, "\r\n") {
 		c.writeCh <- msg + "\r\n"
-		return
+		return nil
 	}
 
 	c.writeCh <- msg
+	return nil
 }

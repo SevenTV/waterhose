@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/SevenTV/Common/sync_map"
 	"github.com/SevenTV/Common/utils"
@@ -28,6 +29,8 @@ type Manager struct {
 	ircConns sync_map.Map[uint32, *Connection]
 	ircIdx   *uint32
 	mtx      sync.Mutex
+
+	openConnMtx sync.Mutex
 
 	rl RateLimiter
 	ep EventPublish
@@ -108,9 +111,15 @@ func (m *Manager) init() {
 }
 
 func (m *Manager) newConn(options ConnectionOptions) *Connection {
-	conn := newConnection(m.gCtx, m, options)
+	conn := newConnection(m.gCtx, m, options, m.openConnLimiter)
 	idx := atomic.AddUint32(m.ircIdx, 1) - 1
 	conn.idx = idx
 	m.ircConns.Store(idx, conn)
 	return conn
+}
+
+func (m *Manager) openConnLimiter() {
+	m.openConnMtx.Lock()
+	time.Sleep(time.Millisecond * 250)
+	m.openConnMtx.Unlock()
 }

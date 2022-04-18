@@ -24,6 +24,7 @@ const (
 	ChannelStateParted        ChannelState = "PARTED"
 	ChannelStateSuspended     ChannelState = "SUSPENDED"
 	ChannelStateBanned        ChannelState = "BANNED"
+	ChannelStateUnknown       ChannelState = "UNKNOWN"
 )
 
 type Channel struct {
@@ -59,12 +60,12 @@ type ConnectionOptions struct {
 	OAuth    string
 }
 
-func newConnection(gCtx global.Context, manager *Manager, options ConnectionOptions) *Connection {
+func newConnection(gCtx global.Context, manager *Manager, options ConnectionOptions, openConnLimiter func()) *Connection {
 	conn := &Connection{
 		gCtx:     gCtx,
 		manager:  manager,
 		username: options.Username,
-		client:   irc.New(options.Username, options.OAuth),
+		client:   irc.New(options.Username, options.OAuth, openConnLimiter),
 		length:   utils.PointerOf(int64(0)),
 	}
 	conn.client.SetOnConnect(conn.onConnect)
@@ -91,10 +92,11 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 							"last_event", v.LastEvent,
 							"conn_id", conn.idx,
 						)
-						go conn.JoinChannel(v.Raw)
+						v.Update(ChannelStateUnknown)
+						conn.JoinChannel(v.Raw)
 					}
 				case ChannelStateJoinRequested:
-					if v.LastEvent.Before(time.Now().Add(-time.Minute * 2)) {
+					if v.LastEvent.Before(time.Now().Add(-time.Minute * 20)) {
 						zap.S().Debugw("join request timed out",
 							"channel_id", v.Raw.Id,
 							"channel_login", v.Raw.Login,
@@ -184,7 +186,23 @@ func (c *Connection) onReconnect() {
 	zap.S().Debugw("twitch client reconnected",
 		"idx", c.idx,
 	)
-	time.Sleep(utils.JitterTime(time.Second*5, time.Second*10))
+
+	for {
+		if err := c.getNewConnection(c.gCtx); err != nil {
+			if c.gCtx.Err() != nil {
+				return
+			}
+
+			zap.S().Errorw("redis",
+				"error", err,
+				"conn_id", c.idx,
+			)
+			time.Sleep(utils.JitterTime(time.Second, time.Second*5))
+			continue
+		}
+
+		return
+	}
 }
 
 func (c *Connection) onMessage(m irc.Message) {
@@ -195,8 +213,10 @@ func (c *Connection) onMessage(m irc.Message) {
 
 	channel.Update()
 	switch m.Type {
+	case irc.MessageTypeRoomState:
+		channel.Update(ChannelStateJoined)
 	case irc.MessageTypeJoin:
-		if m.User == c.username {
+		if m.User == c.username || m.User == "justinfan123123" {
 			channel.Update(ChannelStateJoined)
 		}
 	case irc.MessageTypePart:
@@ -260,6 +280,10 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 		atomic.AddInt64(c.length, 1)
 	}
 
+	if !c.client.IsConnected() {
+		return
+	}
+
 	go func() {
 		if c.idx != 0 {
 			if err := c.manager.rl(c.gCtx, channel); err != nil {
@@ -271,7 +295,10 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 		}
 
 		ch.Update(ChannelStateJoinRequested)
-		c.client.Write("JOIN #" + channel.GetLogin())
+		if err := c.client.Write("JOIN #" + channel.GetLogin()); err != nil {
+			zap.S().Warn("client not connected")
+			ch.Update(ChannelStateParted)
+		}
 	}()
 }
 
@@ -279,5 +306,11 @@ func (c *Connection) PartChannel(channel string) {
 	atomic.AddInt64(c.length, -1)
 	c.channels.Delete(channel)
 
-	c.client.Write("PART #" + channel)
+	if !c.client.IsConnected() {
+		return
+	}
+
+	if err := c.client.Write("PART #" + channel); err != nil {
+		zap.S().Warn("client not connected")
+	}
 }
