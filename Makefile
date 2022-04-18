@@ -3,16 +3,16 @@ all: build_deps proto linux
 BUILDER := "unknown"
 VERSION := "unknown"
 
-ifeq ($(origin TWITCH_CHAT_CONTROLLER_BUILDER),undefined)
+ifeq ($(origin WATERHOSE_BUILDER),undefined)
 	BUILDER = $(shell git config --get user.name);
 else
-	BUILDER = ${TWITCH_CHAT_CONTROLLER_BUILDER};
+	BUILDER = ${WATERHOSE_BUILDER};
 endif
 
-ifeq ($(origin TWITCH_CHAT_CONTROLLER_VERSION),undefined)
+ifeq ($(origin WATERHOSE_VERSION),undefined)
 	VERSION = $(shell git rev-parse HEAD);
 else
-	VERSION = ${TWITCH_CHAT_CONTROLLER_VERSION};
+	VERSION = ${WATERHOSE_VERSION};
 endif
 
 linux:

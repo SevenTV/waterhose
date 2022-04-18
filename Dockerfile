@@ -7,8 +7,8 @@ COPY . .
 ARG BUILDER
 ARG VERSION
 
-ENV TWITCH_CHAT_CONTROLLER_BUILDER=${BUILDER}
-ENV TWITCH_CHAT_CONTROLLER_VERSION=${VERSION}
+ENV WATERHOSE_BUILDER=${BUILDER}
+ENV WATERHOSE_VERSION=${VERSION}
 
 RUN apt-get update && apt-get install make git gcc protobuf-compiler ca-certificates -y && \
     make

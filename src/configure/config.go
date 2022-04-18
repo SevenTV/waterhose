@@ -52,7 +52,7 @@ func New() *Config {
 
 	// Environment
 	config.AutomaticEnv()
-	config.SetEnvPrefix("TE")
+	config.SetEnvPrefix("WH")
 	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	config.AllowEmptyEnv(true)
 
