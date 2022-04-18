@@ -7,8 +7,8 @@ import (
 
 	"github.com/SevenTV/Common/datastructures/priority_queue"
 	"github.com/SevenTV/Common/utils"
-	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-edge/src/instance"
+	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	"github.com/seventv/waterhose/src/instance"
 )
 
 type RateLimit struct {

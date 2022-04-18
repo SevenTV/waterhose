@@ -1,4 +1,4 @@
-module github.com/seventv/twitch-edge
+module github.com/seventv/waterhose
 
 go 1.18
 

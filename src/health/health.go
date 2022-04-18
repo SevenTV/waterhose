@@ -1,7 +1,7 @@
 package health
 
 import (
-	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/waterhose/src/global"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 )

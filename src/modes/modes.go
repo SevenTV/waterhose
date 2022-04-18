@@ -8,16 +8,16 @@ import (
 	cRedis "github.com/SevenTV/Common/redis"
 	"go.uber.org/zap"
 
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/modes/master"
-	"github.com/seventv/twitch-edge/src/modes/slave"
-	"github.com/seventv/twitch-edge/src/monitoring"
-	"github.com/seventv/twitch-edge/src/svc/autoscaler"
-	"github.com/seventv/twitch-edge/src/svc/events"
-	"github.com/seventv/twitch-edge/src/svc/k8s"
-	"github.com/seventv/twitch-edge/src/svc/ratelimiter"
-	"github.com/seventv/twitch-edge/src/svc/redis"
-	"github.com/seventv/twitch-edge/src/svc/twitch"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/modes/master"
+	"github.com/seventv/waterhose/src/modes/slave"
+	"github.com/seventv/waterhose/src/monitoring"
+	"github.com/seventv/waterhose/src/svc/autoscaler"
+	"github.com/seventv/waterhose/src/svc/events"
+	"github.com/seventv/waterhose/src/svc/k8s"
+	"github.com/seventv/waterhose/src/svc/ratelimiter"
+	"github.com/seventv/waterhose/src/svc/redis"
+	"github.com/seventv/waterhose/src/svc/twitch"
 )
 
 func New(gCtx global.Context) <-chan struct{} {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/seventv/twitch-edge/src/configure"
+	"github.com/seventv/waterhose/src/configure"
 )
 
 type Context interface {

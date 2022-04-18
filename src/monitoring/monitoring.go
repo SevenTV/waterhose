@@ -3,7 +3,7 @@ package monitoring
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/waterhose/src/global"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"go.uber.org/zap"

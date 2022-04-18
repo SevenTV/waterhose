@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SevenTV/Common/eventemitter"
-	"github.com/seventv/twitch-edge/src/structures"
+	"github.com/seventv/waterhose/src/structures"
 )
 
 type EventEmitter struct {

@@ -1,8 +1,8 @@
 package slave
 
 import (
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/modes/slave/client"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/modes/slave/client"
 )
 
 func New(gCtx global.Context) <-chan struct{} {

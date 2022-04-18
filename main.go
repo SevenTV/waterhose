@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/bugsnag/panicwrap"
-	"github.com/seventv/twitch-edge/src/configure"
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/modes"
+	"github.com/seventv/waterhose/src/configure"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/modes"
 	"go.uber.org/zap"
 )
 
@@ -56,9 +56,9 @@ func main() {
 
 	if !config.NoHeader {
 		if config.IsMaster() {
-			zap.S().Info("7TV Twitch Edge Master")
+			zap.S().Info("7TV WaterHose Master")
 		} else if config.IsSlave() {
-			zap.S().Info("7TV Twitch Edge Slave")
+			zap.S().Info("7TV WaterHose Slave")
 		}
 		zap.S().Infof("Version: %s", Version)
 		zap.S().Infof("build.Time: %s", Time)

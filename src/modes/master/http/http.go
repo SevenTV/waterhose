@@ -15,7 +15,7 @@ import (
 	"github.com/SevenTV/Common/redis"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nicklaw5/helix"
-	"github.com/seventv/twitch-edge/src/global"
+	"github.com/seventv/waterhose/src/global"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"

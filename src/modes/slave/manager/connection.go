@@ -9,9 +9,9 @@ import (
 
 	"github.com/SevenTV/Common/sync_map"
 	"github.com/SevenTV/Common/utils"
-	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/modes/slave/irc"
+	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/modes/slave/irc"
 	"go.uber.org/zap"
 )
 

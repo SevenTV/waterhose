@@ -2,9 +2,9 @@ package monitoring
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/seventv/twitch-edge/src/configure"
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/instance"
+	"github.com/seventv/waterhose/src/configure"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/instance"
 )
 
 type mon struct {

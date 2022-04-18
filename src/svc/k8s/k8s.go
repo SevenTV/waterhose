@@ -3,8 +3,8 @@ package k8s
 import (
 	"context"
 
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/instance"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/instance"
 	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"

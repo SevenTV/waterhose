@@ -32,8 +32,8 @@ jobs:
             "BUILDER=${{ github.actor }}"
             "VERSION=${{ github.sha }}"
           tags: |
-            harbor.disembark.dev/7tv/twitch-edge:${{ github.sha }}
-            harbor.disembark.dev/7tv/twitch-edge:latest
+            harbor.disembark.dev/7tv/waterhose:${{ github.sha }}
+            harbor.disembark.dev/7tv/waterhose:latest
 
   deploy:
     name: Deploy Twitch-Chat-Controller (Production)
@@ -54,12 +54,12 @@ jobs:
           KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG }}
           KUBE_IMAGE_PATCH: >-
             [
-              { "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "harbor.disembark.dev/7tv/twitch-edge:${{ github.sha }}" }
+              { "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "harbor.disembark.dev/7tv/waterhose:${{ github.sha }}" }
             ]
         run: |
           mkdir -p ~/.kube
           (echo $KUBE_CONFIG_DATA | base64 -d) >> ~/.kube/config
           kubectl config use-context autodeploy@SevenTV
 
-          kubectl patch deploy twitch-edge-master --type="json" -p="$KUBE_IMAGE_PATCH"
-          kubectl patch statefulset twitch-edge-slave --type="json" -p="$KUBE_IMAGE_PATCH"
+          kubectl patch deploy waterhose-master --type="json" -p="$KUBE_IMAGE_PATCH"
+          kubectl patch statefulset waterhose-slave --type="json" -p="$KUBE_IMAGE_PATCH"

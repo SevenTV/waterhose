@@ -4,12 +4,12 @@ import (
 	"net"
 	"sync"
 
-	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-edge/src/global"
-	"github.com/seventv/twitch-edge/src/health"
-	"github.com/seventv/twitch-edge/src/modes/master/http"
-	"github.com/seventv/twitch-edge/src/modes/master/server"
-	"github.com/seventv/twitch-edge/src/monitoring"
+	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	"github.com/seventv/waterhose/src/global"
+	"github.com/seventv/waterhose/src/health"
+	"github.com/seventv/waterhose/src/modes/master/http"
+	"github.com/seventv/waterhose/src/modes/master/server"
+	"github.com/seventv/waterhose/src/monitoring"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )

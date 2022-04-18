@@ -1,8 +1,8 @@
 package instance
 
 import (
-	pb "github.com/seventv/twitch-edge/protobuf/twitch_edge/v1"
-	"github.com/seventv/twitch-edge/src/structures"
+	pb "github.com/seventv/waterhose/protobuf/twitch_edge/v1"
+	"github.com/seventv/waterhose/src/structures"
 )
 
 type AutoScaler interface {

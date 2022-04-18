@@ -1,6 +1,6 @@
 FROM golang:1.18 as builder
 
-WORKDIR /tmp/twitch-chat-controller
+WORKDIR /tmp/waterhose
 
 COPY . .
 
@@ -20,7 +20,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y ca-certificates
 
 COPY --from=builder /usr/sbin/update-ca-certificates /usr/sbin/update-ca-certificates
-COPY --from=builder /tmp/twitch-chat-controller/bin/twitch-edge .
+COPY --from=builder /tmp/waterhose/bin/waterhose .
 
 
-CMD ["/app/twitch-edge"]
+CMD ["/app/waterhose"]
