@@ -1,0 +1,75 @@
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go: [1.18]
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v3.0.0
+        with:
+          go-version: ${{ matrix.go }}
+        id: go
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      # Cache go build cache, used to speedup go test
+      - name: Go Build Cache
+        uses: actions/cache@v3.0.2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      # Cache go mod cache, used to speedup builds
+      - name: Go Mod Cache
+        uses: actions/cache@v3.0.2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1.1.2
+
+      - name: install deps
+        run: make deps
+
+      - name: compile protobuf
+        run: make proto
+
+      - uses: actionsx/prettier@v2
+        with:
+          args: --check .
+
+      - uses: dominikh/staticcheck-action@v1.2.0
+        with:
+          version: "2022.1"
+          install-go: false
+          cache-key: ${{ matrix.go }}
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3.1.0
+
+      - name: lint
+        run: make lint

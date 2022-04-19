@@ -1,3 +1,3 @@
-# Twitch Chat Controller
+# WaterHose
 
-7TV Twitch Chat Controller
+7TV WaterHose
