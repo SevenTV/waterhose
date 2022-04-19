@@ -16,12 +16,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Login to GitHub Container Registry
+      - name: Log into Harbor Registry
         uses: docker/login-action@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: harbor.disembark.dev
+          username: robot$deploy-7tv
+          password: ${{ secrets.REGISTRY_TOKEN }}
 
       - id: buildx-context
         run: |
