@@ -90,10 +90,13 @@ func New(gCtx global.Context) instance.AutoScaler {
 
 					if len(channels) < gCtx.Config().Master.Irc.ChannelLimitPerSlave || preset {
 						channel := structures.Channel{
-							TwitchID:    usr.ID,
-							TwitchLogin: usr.Login,
-							Priority:    mp[usr.ID].Priority,
-							EdgeNode:    int32(presetEdgeIdx),
+							TwitchID:     usr.ID,
+							TwitchLogin:  usr.Login,
+							Priority:     mp[usr.ID].Priority,
+							EdgeNode:     int32(presetEdgeIdx),
+							State:        structures.ChannelStateUnknown,
+							UseAnonymous: mp[usr.ID].UseAnonymous,
+							BotBanned:    false,
 						}
 
 						channels[usr.ID] = channel
@@ -106,11 +109,14 @@ func New(gCtx global.Context) instance.AutoScaler {
 						})
 						operation.SetUpdate(bson.M{
 							"$set": bson.M{
-								"twitch_id":    channel.TwitchID,
-								"twitch_login": channel.TwitchLogin,
-								"priority":     channel.Priority,
-								"edge_node":    channel.EdgeNode,
-								"last_updated": time.Now(),
+								"twitch_id":     channel.TwitchID,
+								"twitch_login":  channel.TwitchLogin,
+								"priority":      channel.Priority,
+								"edge_node":     channel.EdgeNode,
+								"use_anonymous": channel.UseAnonymous,
+								"state":         channel.State,
+								"bot_banned":    channel.BotBanned,
+								"last_updated":  time.Now(),
 							},
 						})
 						operation.SetUpsert(true)
@@ -177,7 +183,14 @@ func New(gCtx global.Context) instance.AutoScaler {
 }
 
 func (a *autoScaler) Load() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	_, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).UpdateMany(ctx, bson.M{}, bson.M{"$set": bson.M{"state": structures.ChannelStateUnknown}})
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*30)
 	cur, err := a.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).Find(ctx, bson.M{})
 	cancel()
 	if err != nil {
@@ -186,7 +199,7 @@ func (a *autoScaler) Load() error {
 
 	channels := []structures.Channel{}
 	{
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 		defer cancel()
 		if err = cur.All(ctx, &channels); err != nil {
 			return err

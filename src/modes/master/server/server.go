@@ -13,6 +13,8 @@ import (
 	"github.com/seventv/waterhose/src/global"
 	"github.com/seventv/waterhose/src/structures"
 	"github.com/seventv/waterhose/src/svc/events"
+	"github.com/seventv/waterhose/src/svc/mongo"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
 )
 
@@ -69,7 +71,7 @@ func (s *Server) RegisterSlave(req *pb.RegisterSlaveRequest, srv pb.WaterHoseSer
 				go func() {
 					joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForSlave(slaveIdx)
 				}()
-				first = false
+				first = true
 			}
 			loginTick.Reset(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 			utils.EmptyChannel(loginEventCh)
@@ -110,9 +112,11 @@ func (s *Server) RegisterSlave(req *pb.RegisterSlaveRequest, srv pb.WaterHoseSer
 			pbChannels := make([]*pb.Channel, len(channels))
 			for i, channel := range channels {
 				pbChannels[i] = &pb.Channel{
-					Id:       channel.TwitchID,
-					Login:    channel.TwitchLogin,
-					Priority: channel.Priority,
+					Id:           channel.TwitchID,
+					Login:        channel.TwitchLogin,
+					Priority:     channel.Priority,
+					UseAnonymous: channel.UseAnonymous,
+					BotBanned:    channel.BotBanned,
 				}
 			}
 
@@ -132,23 +136,72 @@ func (s *Server) RegisterSlave(req *pb.RegisterSlaveRequest, srv pb.WaterHoseSer
 
 func (s *Server) PublishSlaveChannelEvent(ctx context.Context, req *pb.PublishSlaveChannelEventRequest) (*pb.PublishSlaveChannelEventResponse, error) {
 	switch req.Type {
-	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_BANNED:
+	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_BOT_BANNED:
 		zap.S().Debugw("channel banned bot",
 			"channel_id", req.Channel.Id,
 			"channel_login", req.Channel.Login,
 		)
-		// TODO handle this
+		if _, err := s.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).UpdateOne(ctx, bson.M{
+			"twitch_id": req.Channel.Id,
+		}, bson.M{
+			"$set": bson.M{
+				"bot_banned": true,
+			},
+		}); err != nil {
+			zap.S().Errorw("failed to update mongo",
+				"error", err,
+			)
+		}
 	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_SUSPENDED_CHANNEL:
 		zap.S().Debugw("suspended channel",
 			"channel_id", req.Channel.Id,
 			"channel_login", req.Channel.Login,
 		)
-		// TODO handle this
+		if _, err := s.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).UpdateOne(ctx, bson.M{
+			"twitch_id": req.Channel.Id,
+		}, bson.M{
+			"$set": bson.M{
+				"state": structures.ChannelStateSuspended,
+			},
+		}); err != nil {
+			zap.S().Errorw("failed to update mongo",
+				"error", err,
+			)
+		}
+	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_JOINED:
+		zap.S().Debugw("joined channel",
+			"channel_id", req.Channel.Id,
+			"channel_login", req.Channel.Login,
+		)
+		if _, err := s.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).UpdateOne(ctx, bson.M{
+			"twitch_id": req.Channel.Id,
+		},
+			bson.M{
+				"$set": bson.M{
+					"state":      structures.ChannelStateJoined,
+					"bot_banned": req.Channel.BotBanned,
+				},
+			}); err != nil {
+			zap.S().Errorw("failed to update mongo",
+				"error", err,
+			)
+		}
 	case pb.PublishSlaveChannelEventRequest_EVENT_TYPE_UNKNOWN_CHANNEL:
 		zap.S().Debugw("unknown channel",
 			"channel_id", req.Channel.Id,
 			"channel_login", req.Channel.Login,
 		)
+		if _, err := s.gCtx.Inst().Mongo.Collection(mongo.CollectionNameChannels).UpdateOne(ctx, bson.M{
+			"twitch_id": req.Channel.Id,
+		}, bson.M{
+			"$set": bson.M{
+				"state": structures.ChannelStateUnknown,
+			},
+		}); err != nil {
+			zap.S().Errorw("failed to update mongo",
+				"error", err,
+			)
+		}
 		// we need to issue a rejoin on this channel
 		if err := s.gCtx.Inst().AutoScaler.AllocateChannels([]*pb.Channel{
 			req.Channel,

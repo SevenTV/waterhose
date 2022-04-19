@@ -50,6 +50,7 @@ type Connection struct {
 	length   *int64
 
 	idx      uint32
+	anon     bool
 	username string
 
 	client *irc.Client
@@ -91,6 +92,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 							"channel_login", v.Raw.Login,
 							"last_event", v.LastEvent,
 							"conn_id", conn.idx,
+							"anon", conn.anon,
 						)
 						v.Update(ChannelStateUnknown)
 						conn.JoinChannel(v.Raw)
@@ -102,6 +104,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 							"channel_login", v.Raw.Login,
 							"last_event", v.LastEvent,
 							"conn_id", conn.idx,
+							"anon", conn.anon,
 						)
 						if err := conn.manager.ep(gCtx, &pb.PublishSlaveChannelEventRequest{
 							Channel: v.Raw,
@@ -129,6 +132,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 				zap.S().Errorw("redis",
 					"error", err,
 					"conn_id", conn.idx,
+					"anon", conn.anon,
 				)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
@@ -142,6 +146,7 @@ func newConnection(gCtx global.Context, manager *Manager, options ConnectionOpti
 				zap.S().Errorw("twitch client disconnected",
 					"erorr", err,
 					"conn_id", conn.idx,
+					"anon", conn.anon,
 				)
 				time.Sleep(utils.JitterTime(time.Second, time.Second*5))
 			}
@@ -175,6 +180,7 @@ func (c *Connection) getNewConnection(ctx context.Context) error {
 func (c *Connection) onConnect() {
 	zap.S().Debugw("twitch client connected",
 		"idx", c.idx,
+		"anon", c.anon,
 	)
 	c.channels.Range(func(key string, value *Channel) bool {
 		c.JoinChannel(value.Raw)
@@ -185,6 +191,7 @@ func (c *Connection) onConnect() {
 func (c *Connection) onReconnect() {
 	zap.S().Debugw("twitch client reconnected",
 		"idx", c.idx,
+		"anon", c.anon,
 	)
 
 	for {
@@ -214,9 +221,37 @@ func (c *Connection) onMessage(m irc.Message) {
 	channel.Update()
 	switch m.Type {
 	case irc.MessageTypeRoomState:
+		if channel.State != ChannelStateJoined {
+			if channel.Raw.BotBanned && !c.anon {
+				channel.Raw.BotBanned = false
+			}
+
+			if err := c.manager.ep(c.gCtx, &pb.PublishSlaveChannelEventRequest{
+				Channel: channel.Raw,
+				Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_JOINED,
+			}); err != nil {
+				zap.S().Errorw("failed to publish event to master",
+					"error", err,
+				)
+			}
+		}
 		channel.Update(ChannelStateJoined)
 	case irc.MessageTypeJoin:
 		if m.User == c.username || m.User == "justinfan123123" {
+			if channel.State != ChannelStateJoined {
+				if channel.Raw.BotBanned && !c.anon {
+					channel.Raw.BotBanned = false
+				}
+
+				if err := c.manager.ep(c.gCtx, &pb.PublishSlaveChannelEventRequest{
+					Channel: channel.Raw,
+					Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_JOINED,
+				}); err != nil {
+					zap.S().Errorw("failed to publish event to master",
+						"error", err,
+					)
+				}
+			}
 			channel.Update(ChannelStateJoined)
 		}
 	case irc.MessageTypePart:
@@ -241,14 +276,16 @@ func (c *Connection) onMessage(m irc.Message) {
 		if m.Tags.Banned() {
 			if err := c.manager.ep(c.gCtx, &pb.PublishSlaveChannelEventRequest{
 				Channel: channel.Raw,
-				Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_BANNED,
+				Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_BOT_BANNED,
 			}); err != nil {
 				zap.S().Errorw("failed to publish event to master",
 					"error", err,
 				)
 			}
+			channel.Raw.BotBanned = true
+			channel.Raw.UseAnonymous = true
 			channel.Update(ChannelStateBanned)
-			go c.manager.joinAnon(channel.Raw)
+			go c.manager.JoinChat(channel.Raw)
 			return
 		}
 	}
@@ -274,6 +311,14 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 	if ok {
 		ch.Raw = channel
 		if ch.State == ChannelStateJoined {
+			if err := c.manager.ep(c.gCtx, &pb.PublishSlaveChannelEventRequest{
+				Channel: channel,
+				Type:    pb.PublishSlaveChannelEventRequest_EVENT_TYPE_JOINED,
+			}); err != nil {
+				zap.S().Errorw("failed to publish event to master",
+					"error", err,
+				)
+			}
 			return
 		}
 	} else {
@@ -286,7 +331,7 @@ func (c *Connection) JoinChannel(channel *pb.Channel) {
 	}
 
 	go func() {
-		if c.idx != 0 {
+		if !c.anon {
 			ch.Update(ChannelStateWaitingLimits)
 			if err := c.manager.rl(c.gCtx, channel); err != nil {
 				zap.S().Errorw("failed to get rates on channel",
