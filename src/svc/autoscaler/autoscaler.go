@@ -140,6 +140,10 @@ func New(gCtx global.Context) instance.AutoScaler {
 				}
 			}
 
+			if len(newChannels) == 0 {
+				return ret, errs
+			}
+
 			attempts := 0
 			for {
 				if attempts != 0 {

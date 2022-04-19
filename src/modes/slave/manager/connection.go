@@ -183,6 +183,7 @@ func (c *Connection) onConnect() {
 		"anon", c.anon,
 	)
 	c.channels.Range(func(key string, value *Channel) bool {
+		value.Update(ChannelStateUnknown)
 		c.JoinChannel(value.Raw)
 		return true
 	})
