@@ -51,7 +51,7 @@ jobs:
 
       - name: Apply Deployment & Rollout
         env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG }}
+          KUBE_CONFIG_DATA: ${{ secrets.WATERHOSE_KUBECONFIG }}
           KUBE_IMAGE_PATCH: >-
             [
               { "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "harbor.disembark.dev/7tv/waterhose:${{ github.sha }}" }
