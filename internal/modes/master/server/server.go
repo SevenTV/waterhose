@@ -67,12 +67,6 @@ func (s *Server) RegisterSlave(req *pb.RegisterSlaveRequest, srv pb.WaterHoseSer
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-loginEventCh:
-			if !first {
-				go func() {
-					joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForSlave(slaveIdx)
-				}()
-				first = true
-			}
 			loginTick.Reset(time.Hour + utils.JitterTime(time.Minute, time.Minute*10))
 			utils.EmptyChannel(loginEventCh)
 
@@ -107,6 +101,13 @@ func (s *Server) RegisterSlave(req *pb.RegisterSlaveRequest, srv pb.WaterHoseSer
 				},
 			}); err != nil {
 				return err
+			}
+
+			if !first {
+				go func() {
+					joinEventCh <- s.gCtx.Inst().AutoScaler.GetChannelsForSlave(slaveIdx)
+				}()
+				first = true
 			}
 		case channels := <-joinEventCh:
 			pbChannels := make([]*pb.Channel, len(channels))
