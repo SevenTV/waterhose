@@ -76,6 +76,9 @@ jobs:
       - name: install dev_deps
         run: make dev_deps
 
+      - name: install deps
+        run: make deps
+
       - name: Run Lint
         run: make lint
 
