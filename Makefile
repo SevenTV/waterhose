@@ -42,6 +42,7 @@ dev_deps:
 	$(MAKE) -C protobuf deps
 
 test:
+	$(MAKE) -C protobuf compile
 	go test -count=1 -cover -parallel $$(nproc) -race ./...
 
 clean:
