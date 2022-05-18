@@ -92,7 +92,6 @@ jobs:
           cancelMode: self
           notifyPRCancel: false
           token: ${{ secrets.GITHUB_TOKEN }}
-          sourceRunId: ${{ github.event.workflow_run.id }}
 
   build:
     name: Build and Test

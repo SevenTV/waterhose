@@ -16,7 +16,6 @@ else
 endif
 
 build:
-	$(MAKE) -C protobuf compile
 	GOOS=linux GOARCH=amd64 go build -v -ldflags "-X 'main.Version=${VERSION}' -X 'main.Unix=$(shell date +%s)' -X 'main.User=${BUILDER}'" -o out/waterhose cmd/*.go
 
 lint:
@@ -34,15 +33,17 @@ format:
 deps:
 	go mod download
 	$(MAKE) -C protobuf build_deps
+	$(MAKE) -C protobuf compile
 
 dev_deps:
+	yarn
+
 	go install honnef.co/go/tools/cmd/staticcheck@v0.3.1
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@master # TODO fix this version, currently master to lint go1.18 files
 
 	$(MAKE) -C protobuf deps
 
 test:
-	$(MAKE) -C protobuf compile
 	go test -count=1 -cover -parallel $$(nproc) -race ./...
 
 clean:
