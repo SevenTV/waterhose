@@ -36,7 +36,8 @@ FROM $BASE_IMG as go-builder
     RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH" && \
         make deps
 
-    COPY . .
+    COPY internal internal
+    COPY cmd cmd
 
     RUN make test
 
