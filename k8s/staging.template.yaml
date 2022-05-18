@@ -1,0 +1,306 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waterhose-master
+  namespace: app-staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: waterhose-master
+  template:
+    metadata:
+      labels:
+        app: waterhose-master
+    spec:
+      volumes:
+        - name: config
+          configMap:
+            name: waterhose-master-config
+            defaultMode: 420
+      containers:
+        - name: waterhose-master
+          image: harbor.disembark.dev/staging/waterhose:${IMAGE_TAG}
+          ports:
+            - name: grpc
+              containerPort: 3000
+              protocol: TCP
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+            - name: health
+              containerPort: 9200
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: waterhose-master-secret
+          resources:
+            limits:
+              cpu: "2"
+              memory: 8Gi
+            requests:
+              cpu: 500m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+          livenessProbe:
+            tcpSocket:
+              port: health
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket:
+              port: health
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 6
+          imagePullPolicy: Always
+      serviceAccountName: waterhose-master
+      serviceAccount: waterhose-master
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waterhose-master
+  namespace: app-staging
+  labels:
+    app: waterhose-master
+spec:
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+    - name: http
+      protocol: TCP
+      port: 3100
+      targetPort: 3100
+    - name: metrics
+      protocol: TCP
+      port: 9100
+      targetPort: 9100
+    - name: health
+      protocol: TCP
+      port: 9200
+      targetPort: 9200
+  selector:
+    app: waterhose-master
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: waterhose-master-config
+  namespace: app-staging
+data:
+  config.yaml: |
+    level: info
+
+    mode: master
+
+    redis:
+      master_name: mymaster
+      database: 1
+      username: default
+      addresses:
+        - redis-main-headless.redis-main.svc.cluster.local:26379
+      sentinel: true
+
+    health:
+      enabled: true
+      bind: 0.0.0.0:9200
+
+    metrics:
+      enabled: true
+      bind: 0.0.0.0:9100
+
+    master:
+      api:
+        bind: 0.0.0.0:3000
+        http_bind: 0.0.0.0:3100
+
+      k8s:
+        enabled: true
+        in_cluster: true
+        statefulset_name: waterhose-slave
+        namespace: app-staging
+
+      irc:
+        channel_limit_per_slave: 12500
+        bot_account_id: 503012119
+      
+      twitch:
+        client_id: hlhqiva2op4h64qz2ctzd1vw61nsyk
+        redirect_uri: http://localhost:3100/auth/callback
+
+      mongo:
+        database: waterhose
+---
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: waterhose-slave
+  namespace: app-staging
+spec:
+  selector:
+    matchLabels:
+      app: waterhose-slave
+  template:
+    metadata:
+      labels:
+        app: waterhose-slave
+    spec:
+      volumes:
+        - name: config
+          configMap:
+            name: waterhose-slave-config
+            defaultMode: 420
+      containers:
+        - name: waterhose-master
+          image: harbor.disembark.dev/staging/waterhose:${IMAGE_TAG}
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+            - name: health
+              containerPort: 9200
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: waterhose-slave-secret
+          env:
+            - name: WH_K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+          livenessProbe:
+            tcpSocket:
+              port: health
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket:
+              port: health
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 6
+          imagePullPolicy: Always
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: regcred
+  serviceName: waterhose-slave-headless
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waterhose-slave-headless
+  namespace: app-staging
+  labels:
+    app: waterhose-slave
+spec:
+  selector:
+    app: waterhose-slave
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: waterhose-slave-config
+  namespace: app-staging
+data:
+  config.yaml: |
+    level: info
+
+    mode: slave
+
+    health:
+      enabled: true
+      bind: 0.0.0.0:9200
+
+    metrics:
+      enabled: true
+      bind: 0.0.0.0:9100
+
+    redis:
+      master_name: mymaster
+      database: 1
+      username: default
+      addresses:
+        - redis-main-headless.redis-main.svc.cluster.local:26379
+      sentinel: true
+
+    slave:
+      api:
+        grpc_dial: waterhose-master:3000
+      irc:
+        channel_limit_per_conn: 450
+---
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waterhose-master
+  namespace: app-staging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: waterhose-master
+  namespace: app-staging
+rules:
+  - verbs:
+      - get
+      - watch
+      - list
+      - patch
+      - update
+      - scale
+    apiGroups:
+      - apps
+    resources:
+      - statefulsets
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: waterhose-master
+  namespace: app-staging
+subjects:
+  - kind: ServiceAccount
+    name: waterhose-master
+    namespace: app-staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: waterhose-master
