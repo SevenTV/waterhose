@@ -2,7 +2,7 @@
 *.gif
 *.webp
 *.avif
-bin/
+out/
 tmp/
 *.yaml
 !example.config.yaml
@@ -14,3 +14,4 @@ packrd/
 *_gen.go
 node_modules/
 *.pb.go
+.vscode/
